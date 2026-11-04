@@ -1,13 +1,13 @@
-// Game cover images: stored as files next to the database, so links can't go stale.
-import { mkdirSync, rmSync, writeFileSync } from 'node:fs';
-import { fileURLToPath } from 'node:url';
-import path from 'node:path';
+// Game cover images: copied into Vercel Blob (never hot-linked), so links can't go stale.
 import express from 'express';
-import { db } from './db.js';
+import { del, put } from '@vercel/blob';
+import { sql } from './db.js';
 import { requireAuth } from './auth.js';
 
-export const IMAGE_DIR = process.env.GAMENIGHT_IMAGES ?? fileURLToPath(new URL('../../data/images', import.meta.url));
-mkdirSync(IMAGE_DIR, { recursive: true });
+// Test mode keeps its uploads in their own folder of the store.
+const FOLDER = process.env.GAMENIGHT_TEST === '1' ? 'test-covers' : 'covers';
+// Prefer the store's read-write token when there is one; otherwise @vercel/blob falls back to Vercel's OIDC login.
+const BLOB_TOKEN = process.env.BLOB_READ_WRITE_TOKEN;
 
 const MAX_BYTES = 5 * 1024 * 1024;
 const TYPES: Record<string, string> = { 'image/jpeg': 'jpg', 'image/png': 'png', 'image/webp': 'webp', 'image/gif': 'gif', 'image/avif': 'avif' };
@@ -32,9 +32,9 @@ function fromDataUrl(dataUrl: string) {
   return { type: m[1], data };
 }
 
-export function removeImage(gameId: number) {
-  const row = db.prepare('SELECT image FROM games WHERE id = ?').get(gameId) as { image: string | null } | undefined;
-  if (row?.image) rmSync(path.join(IMAGE_DIR, row.image), { force: true });
+export async function removeImage(gameId: number) {
+  const [row] = await sql`SELECT image FROM games WHERE id = ${gameId}`;
+  if (row?.image) await del(row.image, { token: BLOB_TOKEN });
 }
 
 async function bgg(pathAndQuery: string): Promise<string> {
@@ -49,12 +49,10 @@ const decode = (s: string) => s.replace(/&amp;/g, '&').replace(/&quot;/g, '"').r
 
 export const imageRoutes = express.Router();
 
-imageRoutes.use('/images', express.static(IMAGE_DIR, { maxAge: '7d' }));
-
 // Body: { url } to download from a link, { dataUrl } for an upload, or { bggId } to use BoardGameGeek's cover.
 imageRoutes.put('/games/:id/image', requireAuth, express.json({ limit: '8mb' }), async (req, res) => {
   const gameId = Number(req.params.id);
-  if (!db.prepare('SELECT 1 FROM games WHERE id = ?').get(gameId)) return res.status(404).json({ error: 'Game not found.' });
+  if (!(await sql`SELECT 1 FROM games WHERE id = ${gameId}`).length) return res.status(404).json({ error: 'Game not found.' });
   try {
     let image;
     if (req.body?.dataUrl) image = fromDataUrl(String(req.body.dataUrl));
@@ -66,20 +64,20 @@ imageRoutes.put('/games/:id/image', requireAuth, express.json({ limit: '8mb' }),
       image = await download(decode(url));
     } else return res.status(400).json({ error: 'Give an image link or upload a file.' });
 
-    removeImage(gameId);
-    // Version the filename so browsers don't show a cached old cover.
-    const file = `${gameId}-${Date.now()}.${TYPES[image.type]}`;
-    writeFileSync(path.join(IMAGE_DIR, file), image.data);
-    db.prepare('UPDATE games SET image = ? WHERE id = ?').run(file, gameId);
-    res.json({ image: file });
+    await removeImage(gameId);
+    // Random suffix so browsers don't show a cached old cover.
+    const { url } = await put(`${FOLDER}/${gameId}.${TYPES[image.type]}`, image.data,
+      { access: 'public', contentType: image.type, addRandomSuffix: true, token: BLOB_TOKEN });
+    await sql`UPDATE games SET image = ${url} WHERE id = ${gameId}`;
+    res.json({ image: url });
   } catch (err) {
     res.status(400).json({ error: (err as Error).message });
   }
 });
 
-imageRoutes.delete('/games/:id/image', requireAuth, (req, res) => {
-  removeImage(Number(req.params.id));
-  db.prepare('UPDATE games SET image = NULL WHERE id = ?').run(Number(req.params.id));
+imageRoutes.delete('/games/:id/image', requireAuth, async (req, res) => {
+  await removeImage(Number(req.params.id));
+  await sql`UPDATE games SET image = NULL WHERE id = ${Number(req.params.id)}`;
   res.json({ ok: true });
 });
 

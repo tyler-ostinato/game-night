@@ -8,22 +8,26 @@
     "dev": "tsx watch src/index.ts",
     "import": "tsx src/import.ts",
     "typecheck": "tsc",
-    "dev:test": "tsx src/make-test-db.ts && PORT=3002 GAMENIGHT_TEST=1 GAMENIGHT_DB=../data/test.db GAMENIGHT_IMAGES=../data/test-images tsx watch src/index.ts"
+    "dev:test": "PORT=3002 GAMENIGHT_TEST=1 tsx watch src/index.ts",
+    "db:setup": "tsx src/setup-db.ts",
+    "migrate-sqlite": "tsx src/migrate-sqlite.ts"
   },
   "keywords": [],
   "author": "",
   "license": "ISC",
   "type": "module",
   "dependencies": {
-    "better-sqlite3": "^13.0.3",
+    "@vercel/blob": "^2.8.2",
     "cors": "^2.8.6",
-    "express": "^5.3.0"
+    "express": "^5.3.0",
+    "postgres": "^4.0.0"
   },
   "devDependencies": {
     "@types/better-sqlite3": "^9.6.0",
     "@types/cors": "^2.8.19",
     "@types/express": "^5.0.6",
     "@types/node": "^26.6.5",
+    "better-sqlite3": "^13.0.3",
     "tsx": "^4.23.15",
     "typescript": "^7.0.2"
   }

@@ -1,4 +1,4 @@
-import { db } from './db.js';
+import { sql } from './db.js';
 
 type Entry = {
   play_id: number; session_id: number; date: string; game_id: number; game: string; expansions: string | null
@@ -9,16 +9,16 @@ type Entry = {
 // list the winner, so rates and streaks only count complete plays to stay fair.
 const isComplete = (e: Entry) => e.players_in_play > 1;
 
-function entries(includeLegacy: boolean): Entry[] {
-  return db.prepare(`
+async function entries(includeLegacy: boolean): Promise<Entry[]> {
+  return sql<Entry[]>`
     SELECT pl.id AS play_id, s.id AS session_id, s.date, g.id AS game_id, g.name AS game, p.name AS player, pp.score, pp.placement, pl.legacy,
-      (SELECT group_concat(e.name, ', ') FROM play_expansions pe JOIN expansions e ON e.id = pe.expansion_id WHERE pe.play_id = pl.id) AS expansions,
-      (SELECT count(*) FROM play_players WHERE play_id = pl.id) AS players_in_play
+      (SELECT string_agg(e.name, ', ') FROM play_expansions pe JOIN expansions e ON e.id = pe.expansion_id WHERE pe.play_id = pl.id) AS expansions,
+      (SELECT count(*)::int FROM play_players WHERE play_id = pl.id) AS players_in_play
     FROM play_players pp
     JOIN plays pl ON pl.id = pp.play_id JOIN sessions s ON s.id = pl.session_id
     JOIN games g ON g.id = pl.game_id JOIN players p ON p.id = pp.player_id
-    WHERE ? OR pl.legacy = 0
-    ORDER BY s.date, pl.id`).all(includeLegacy ? 1 : 0) as Entry[];
+    WHERE ${includeLegacy} OR pl.legacy = 0
+    ORDER BY s.date, pl.id`;
 }
 
 const rate = (wins: number, played: number) => (played ? wins / played : null);
@@ -36,18 +36,18 @@ function summarize(mine: Entry[]) {
   };
 }
 
-export function playerList(includeLegacy = true) {
-  const all = entries(includeLegacy);
+export async function playerList(includeLegacy = true) {
+  const all = await entries(includeLegacy);
   // Also list people added on the Players tab who haven't played anything yet.
-  const unplayed = db.prepare('SELECT name FROM players WHERE id NOT IN (SELECT player_id FROM play_players)').pluck().all() as string[];
+  const unplayed = (await sql`SELECT name FROM players WHERE id NOT IN (SELECT player_id FROM play_players)`).map(r => r.name as string);
   const names = [...new Set([...all.map(e => e.player), ...unplayed])];
   return names
     .map(name => ({ name, ...summarize(all.filter(e => e.player === name)) }))
     .sort((a, b) => b.wins - a.wins || a.name.localeCompare(b.name));
 }
 
-export function playerProfile(name: string, includeLegacy = true) {
-  const all = entries(includeLegacy);
+export async function playerProfile(name: string, includeLegacy = true) {
+  const all = await entries(includeLegacy);
   const mine = all.filter(e => e.player === name);
   if (!mine.length) return null;
 
@@ -136,9 +136,9 @@ function standingsFor(rows: Entry[]) {
 }
 
 // Top of each game for the game tiles, using the same ranking as the game page.
-export function gameChampions(includeLegacy = true) {
+export async function gameChampions(includeLegacy = true) {
   const byGame = new Map<number, Entry[]>();
-  for (const e of entries(includeLegacy)) byGame.set(e.game_id, [...(byGame.get(e.game_id) ?? []), e]);
+  for (const e of await entries(includeLegacy)) byGame.set(e.game_id, [...(byGame.get(e.game_id) ?? []), e]);
   // Top three winners per game (players with at least one win), with shared places for ties.
   const podiums = new Map<number, { name: string; wins: number; place: number }[]>();
   for (const [gameId, rows] of byGame) {
@@ -149,16 +149,15 @@ export function gameChampions(includeLegacy = true) {
   return podiums;
 }
 
-export function gameStats(gameId: number, includeLegacy = true) {
-  const rows = entries(includeLegacy).filter(e => e.game_id === gameId);
+export async function gameStats(gameId: number, includeLegacy = true) {
+  const rows = (await entries(includeLegacy)).filter(e => e.game_id === gameId);
   // Plays come from the plays table so ones with nobody recorded still count.
-  const playRows = db.prepare(`
+  const playRows = await sql<{ id: number; session_id: number; date: string; legacy: number; expansions: string | null }[]>`
     SELECT pl.id, pl.session_id, s.date, pl.legacy,
-      (SELECT group_concat(e.name, ', ') FROM play_expansions pe JOIN expansions e ON e.id = pe.expansion_id WHERE pe.play_id = pl.id) AS expansions
+      (SELECT string_agg(e.name, ', ') FROM play_expansions pe JOIN expansions e ON e.id = pe.expansion_id WHERE pe.play_id = pl.id) AS expansions
     FROM plays pl JOIN sessions s ON s.id = pl.session_id
-    WHERE pl.game_id = ? AND (? OR pl.legacy = 0)
-    ORDER BY s.date, pl.id`).all(gameId, includeLegacy ? 1 : 0) as
-    { id: number; session_id: number; date: string; legacy: number; expansions: string | null }[];
+    WHERE pl.game_id = ${gameId} AND (${includeLegacy} OR pl.legacy = 0)
+    ORDER BY s.date, pl.id`;
 
   const scored = rows.filter(e => e.score != null);
   const top = scored.reduce<Entry | null>((best, e) => (!best || e.score! > best.score! ? e : best), null);

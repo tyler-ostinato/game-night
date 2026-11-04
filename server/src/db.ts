@@ -1,37 +1,30 @@
-import Database from 'better-sqlite3';
-import { readFileSync } from 'node:fs';
-import { fileURLToPath } from 'node:url';
-import path from 'node:path';
+import postgres from 'postgres';
 
-const dir = path.dirname(fileURLToPath(import.meta.url));
-export const db = new Database(process.env.GAMENIGHT_DB ?? path.join(dir, '../../data/gamenight.db'));
-db.pragma('foreign_keys = ON');
-db.exec(readFileSync(path.join(dir, 'schema.sql'), 'utf8'));
+// Test mode gets its own database so it can never touch real results.
+const TEST_MODE = process.env.GAMENIGHT_TEST === '1';
+const url = TEST_MODE ? process.env.TEST_DATABASE_URL : process.env.DATABASE_URL;
+if (!url) throw new Error(`Set ${TEST_MODE ? 'TEST_DATABASE_URL' : 'DATABASE_URL'} (see README).`);
 
-// Columns added after the first release. Live sessions have started_at; legacy ones don't.
-const sessionCols = (db.prepare('PRAGMA table_info(sessions)').all() as { name: string }[]).map(c => c.name);
-if (!sessionCols.includes('started_at')) db.exec('ALTER TABLE sessions ADD COLUMN started_at TEXT');
-if (!sessionCols.includes('ended_at')) db.exec('ALTER TABLE sessions ADD COLUMN ended_at TEXT');
-const gameCols = (db.prepare('PRAGMA table_info(games)').all() as { name: string }[]).map(c => c.name);
-if (!gameCols.includes('image')) db.exec('ALTER TABLE games ADD COLUMN image TEXT');
+// prepare: false because Neon's pooled connection doesn't keep prepared statements.
+export const sql = postgres(url, { prepare: false, max: process.env.VERCEL ? 1 : 10, onnotice: () => {} });
 
-export function expansionIdFor(gameId: number, name: string): number {
-  db.prepare('INSERT OR IGNORE INTO expansions (game_id, name) VALUES (?, ?)').run(gameId, name);
-  return (db.prepare('SELECT id FROM expansions WHERE game_id = ? AND name = ?').get(gameId, name) as { id: number }).id;
+type Sql = typeof sql | postgres.TransactionSql;
+
+export async function expansionIdFor(gameId: number, name: string, tx: Sql = sql): Promise<number> {
+  await tx`INSERT INTO expansions (game_id, name) VALUES (${gameId}, ${name}) ON CONFLICT DO NOTHING`;
+  const [row] = await tx`SELECT id FROM expansions WHERE game_id = ${gameId} AND name = ${name}`;
+  return row.id;
 }
 
-// Move the old pipe-separated plays.expansions text into the expansions tables.
-const unlinked = db.prepare(`SELECT id, game_id, expansions FROM plays
-  WHERE expansions IS NOT NULL AND id NOT IN (SELECT play_id FROM play_expansions)`).all() as { id: number; game_id: number; expansions: string }[];
-db.transaction(() => {
-  for (const p of unlinked) {
-    for (const name of p.expansions.split('|').map(s => s.trim()).filter(Boolean)) {
-      db.prepare('INSERT OR IGNORE INTO play_expansions (play_id, expansion_id) VALUES (?, ?)').run(p.id, expansionIdFor(p.game_id, name));
-    }
-  }
-})();
+export async function idFor(table: 'players' | 'games', name: string, tx: Sql = sql): Promise<number> {
+  await tx`INSERT INTO ${tx(table)} (name) VALUES (${name}) ON CONFLICT DO NOTHING`;
+  const [row] = await tx`SELECT id FROM ${tx(table)} WHERE name = ${name}`;
+  return row.id;
+}
 
-export function idFor(table: 'players' | 'games', name: string): number {
-  db.prepare(`INSERT OR IGNORE INTO ${table} (name) VALUES (?)`).run(name);
-  return (db.prepare(`SELECT id FROM ${table} WHERE name = ?`).get(name) as { id: number }).id;
+// After inserting rows with explicit ids, move each id counter past the highest id.
+export async function resetSequences(tx: Sql = sql) {
+  for (const t of ['players', 'games', 'sessions', 'plays', 'expansions']) {
+    await tx`SELECT setval(pg_get_serial_sequence(${t}, 'id'), coalesce((SELECT max(id) FROM ${tx(t)}), 0) + 1, false)`;
+  }
 }

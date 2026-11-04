@@ -2,27 +2,36 @@
 
 Tracks our game nights: who played, who won, scores, records, and stats for each player and each game.
 
-- **server/**: Express API (TypeScript) on top of a SQLite database
+- **server/**: Express API (TypeScript) on top of Postgres (Neon); covers live in Vercel Blob
 - **client/**: React + Vite site (TypeScript)
-- **data/**: the database, game cover images, and the CSV of past results
+- **api/**: the entry point Vercel runs the server from
+- **data/** (not in git): the old SQLite database and covers, and the CSV of past results
+
+Hosted on Vercel. Every push to `main` deploys; other branches get a preview URL.
 
 ## Getting started
 
-Requires Node 20+. Run everything from the top `game-night` folder:
+Requires Node 22+ and access to the Vercel project (ask Tyler to invite you). Run everything from the top `game-night` folder:
 
 ```bash
-npm run setup     # install everything (first time only)
-npm run import    # load past results from data/results.csv (first time only)
-npm run dev       # starts the API (:3001) and the site (:5173) together
+npm run setup          # install everything (first time only)
+npx vercel login       # first time only
+npx vercel link        # first time only: pick the game-night project
+npx vercel env pull    # writes the settings (database etc.) to .env.local; never commit it
+npm run dev            # starts the API (:3001) and the site (:5173) together
 ```
+
+`npm run dev` uses the **real** database, the same one the live site uses. Use [testing mode](#testing-mode) to experiment.
 
 Open http://localhost:5173. Both halves reload automatically when you edit code, and one Ctrl+C stops both.
 
 | Command | What it does |
 |---|---|
 | `npm run dev` | Normal mode: real data, API on :3001, site on :5173 |
-| `npm run dev:test` | Testing mode on a throwaway copy (see [Testing mode](#testing-mode)) |
+| `npm run dev:test` | Testing mode on a separate database (see [Testing mode](#testing-mode)) |
+| `npm run db:setup` | Create the tables (add `-- --test` for the test database) |
 | `npm run import` | Reload the legacy CSV (keeps game nights recorded on the site) |
+| `npm run migrate-sqlite` | One-off: copy `data/gamenight.db` and `data/images/` into Postgres and Blob |
 | `npm run setup` | Install dependencies for the root, server and client |
 
 ## The site
@@ -67,7 +76,7 @@ A session is dated by the night it **started**, so a game finishing at 1am still
 - **Deleting:** a game or expansion can only be deleted if it has never been played, so history can't be lost. The server enforces this too.
 - **Covers:**
   - In **Edit**, paste an image link or upload a photo. For an image link, right-click a box image on BoardGameGeek and choose *Copy image address*.
-  - The server keeps its own copy in `data/images/`, so covers keep working if the original link dies.
+  - The server keeps its own copy in Vercel Blob, so covers keep working if the original link dies.
   - Uploads are shrunk in the browser first; the limit is 5 MB.
   - The current covers came from BoardGameGeek. **Cluedo** uses BGG's *Clue (1949)* entry and **Dune** uses *Dune: Imperium (2020)*.
 - **BoardGameGeek search:** BGG's search API needs a free token (register at https://boardgamegeek.com/using_the_xml_api). Start the server with `BGG_TOKEN=...` to get a **Search BGG** box in the cover editor. This hasn't been tested with a real token yet.
@@ -86,14 +95,14 @@ A session is dated by the night it **started**, so a game finishing at 1am still
 
 ## Data
 
-### Database tables (`data/gamenight.db`)
+### Database tables (`server/src/schema.sql`)
 
 | Table | What it holds |
 |---|---|
 | `sessions` | One game night: `date` (night it started), `started_at`, `ended_at`, `legacy` |
 | `plays` | One game played during a session, with notes and end time |
 | `play_players` | Who was in a play, with score and placement |
-| `games` | Game names and cover image file |
+| `games` | Game names and cover image URL |
 | `expansions` | Expansions, each belonging to one game |
 | `play_expansions` | Which expansions were used in a play |
 | `players` | Player names |
@@ -128,11 +137,10 @@ Cleanup already applied to the notebook data:
 
 | File | What it is |
 |---|---|
-| `gamenight.db` | The real database |
-| `images/` | Real game covers |
+| `gamenight.db` | The old SQLite database (before the move to Postgres) |
+| `images/` | The old covers (now copied to Blob) |
 | `results.csv` | Cleaned legacy results (the import source) |
 | `results.original.csv` | The CSV before cleanup |
-| `test.db`, `test-images/` | Testing-mode copies, recreated on every `npm run dev:test` |
 | `gamenight.backup-before-cleanup.db` | Backup from before stray test data was removed; safe to delete |
 
 ## Password
@@ -141,7 +149,7 @@ Cleanup already applied to the notebook data:
 - **Making changes** needs the password: logging in, starting, ending or cancelling sessions, adding games or players, and editing games, expansions or covers.
 - **Where it's checked:** on the server only (`server/src/auth.ts`). Set it with `GAMENIGHT_PASSWORD`; the server won't start without it (except in test mode).
 - **Logins** last 30 days per device.
-- **Wrong guesses:** after 10, that IP is blocked for 15 minutes.
+- **Wrong guesses:** after 10, that IP is blocked for 15 minutes. On Vercel each server instance counts separately, so this only slows guessing down.
 
 ## Testing mode
 
@@ -151,24 +159,28 @@ Use this to try things without touching real data.
 npm run dev:test    # test API on :3002, test site on http://localhost:5174
 ```
 
-- **Fresh copy:** on start, it copies the real database to `data/test.db` and the covers to `data/test-images/`, and only touches those copies.
+- **Separate database:** it uses `TEST_DATABASE_URL` instead of `DATABASE_URL`, so it can't touch real results. Set it up once:
+  1. In the Neon console (Vercel → Storage → your database → Open in Neon), create a **branch** called `dev`. It starts as a copy of the real data.
+  2. Add its connection string to `.env.local` as `TEST_DATABASE_URL=...`.
+  3. To start over, use **Reset from parent** on that branch in Neon.
+- **Covers** uploaded in test mode go to a separate `test-covers/` folder in Blob.
 - **No password**, because the test API only accepts connections from this computer.
 - **Banner:** the site shows a yellow **TEST MODE** banner.
-- **Starting over:** Ctrl+C and run it again to reset to a fresh copy of the real data. A running test server never sees later changes to the real data, so restart it to pick them up.
-- **Already running:** it refuses to start if test mode is already up, because swapping the database underneath a running server breaks it.
 - **Separate ports:** it runs alongside the normal site.
 
 ## Code map
 
 | File | What's in it |
 |---|---|
-| `server/src/index.ts` | API routes: sessions, plays, games, expansions, records |
+| `server/src/app.ts` | API routes: sessions, plays, games, expansions, records |
+| `server/src/index.ts` | Local dev server (Vercel uses `api/index.ts`) |
 | `server/src/stats.ts` | Player profiles, leaderboard, per-game stats, champions |
-| `server/src/images.ts` | Cover upload, download and serving; BoardGameGeek search |
+| `server/src/images.ts` | Cover upload and download to Blob; BoardGameGeek search |
 | `server/src/auth.ts` | Password check, login tokens, rate limiting |
-| `server/src/db.ts`, `schema.sql` | Database connection, tables, migrations |
+| `server/src/db.ts`, `schema.sql` | Database connection and tables |
 | `server/src/import.ts` | CSV import |
-| `server/src/make-test-db.ts` | Testing-mode copy |
+| `server/src/setup-db.ts` | Creates the tables |
+| `server/src/migrate-sqlite.ts` | One-off SQLite → Postgres copy |
 | `client/src/App.tsx` | Layout, Game night, Leaderboard, History, Records |
 | `client/src/Players.tsx` | Players tab and player profile |
 | `client/src/Activity.tsx` | History's activity chart |
@@ -205,16 +217,16 @@ Read endpoints accept `?legacy=0` to leave out legacy games. Endpoints marked �
 | Variable | Default | Purpose |
 |---|---|---|
 | `GAMENIGHT_PASSWORD` | required | Password for making changes |
-| `GAMENIGHT_DB` | `data/gamenight.db` | Database file |
-| `GAMENIGHT_IMAGES` | `data/images` | Cover images folder |
+| `DATABASE_URL` | required | Postgres connection (set by Vercel's Neon integration) |
+| `TEST_DATABASE_URL` | unset | Postgres connection for testing mode |
+| `BLOB_STORE_ID`, `VERCEL_OIDC_TOKEN` | set by Vercel | Access to the cover image store |
 | `BGG_TOKEN` | unset | BoardGameGeek token; turns on "Search BGG" |
 | `PORT` | `3001` | API port |
 | `GAMENIGHT_TEST` | unset | `1` = test mode: no password, localhost only, banner (set by `dev:test`) |
 | `API_PORT` (client) | `3001` | Which API port the site talks to |
 
-## Going live checklist
+## Deploying
 
-- Set a real `GAMENIGHT_PASSWORD`.
-- Serve over HTTPS so the password isn't sent in plain text.
-- Back up `data/gamenight.db` and `data/images/` regularly. They're the only copy of everything.
-- Never run testing mode on the public server. It has no password.
+- **Automatic:** push to `main` and Vercel deploys it. Other branches and pull requests get their own preview URL, which uses the same real database.
+- **Settings** live in Vercel → Project → Settings → Environment Variables. Change them there, not in code.
+- **Backups:** Neon keeps restore points (Neon console → Restore). Never run testing mode on the public server, since it has no password.

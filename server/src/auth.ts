@@ -1,6 +1,6 @@
 import { randomBytes, timingSafeEqual, createHash } from 'node:crypto';
 import type { Request, Response, NextFunction } from 'express';
-import { db } from './db.js';
+import { sql } from './db.js';
 
 const PASSWORD = process.env.GAMENIGHT_PASSWORD ?? '';
 if (!PASSWORD && process.env.GAMENIGHT_TEST !== '1') {
@@ -8,12 +8,12 @@ if (!PASSWORD && process.env.GAMENIGHT_TEST !== '1') {
 }
 const TOKEN_DAYS = 30;
 
-// Bots get 10 tries per IP every 15 minutes.
+// Bots get 10 tries per IP every 15 minutes (per server instance, so it's a speed bump on Vercel).
 const attempts = new Map<string, { count: number; resetAt: number }>();
 
 const hash = (s: string) => createHash('sha256').update(s).digest();
 
-export function login(req: Request, res: Response) {
+export async function login(req: Request, res: Response) {
   const ip = req.ip ?? 'unknown';
   const now = Date.now();
   const a = attempts.get(ip);
@@ -26,16 +26,16 @@ export function login(req: Request, res: Response) {
   }
   attempts.delete(ip);
   const token = randomBytes(32).toString('hex');
-  db.prepare('INSERT INTO auth_tokens (token, created_at) VALUES (?, ?)').run(token, new Date().toISOString());
+  await sql`INSERT INTO auth_tokens (token, created_at) VALUES (${token}, ${new Date().toISOString()})`;
   res.json({ token });
 }
 
-export function requireAuth(req: Request, res: Response, next: NextFunction) {
+export async function requireAuth(req: Request, res: Response, next: NextFunction) {
   // Test mode only listens on localhost, so no password is needed.
   if (process.env.GAMENIGHT_TEST === '1') return next();
   const token = req.headers.authorization?.replace(/^Bearer /, '');
   const cutoff = new Date(Date.now() - TOKEN_DAYS * 86_400_000).toISOString();
-  const ok = token && db.prepare('SELECT 1 FROM auth_tokens WHERE token = ? AND created_at > ?').get(token, cutoff);
+  const ok = token && (await sql`SELECT 1 FROM auth_tokens WHERE token = ${token} AND created_at > ${cutoff}`).length;
   if (!ok) return res.status(401).json({ error: 'Please log in.' });
   next();
 }

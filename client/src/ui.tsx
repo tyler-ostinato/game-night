@@ -63,15 +63,13 @@ export function Empty({ what = 'No games recorded yet.' }: { what?: string }) {
   )
 }
 
-export const imageUrl = (file: string) => `/api/images/${file}`
-
 // Box-art cover, or a coloured placeholder with the game's initials.
 export function GameCover({ name, image, className = '' }: { name: string; image: string | null; className?: string }) {
   // Whole box art scaled to fit, over a blurred copy that fills the leftover space.
   if (image) return (
     <span className={`cover cover-art ${className}`}>
-      <img className="cover-blur" src={imageUrl(image)} alt="" aria-hidden="true" loading="lazy" />
-      <img className="cover-img" src={imageUrl(image)} alt="" loading="lazy" />
+      <img className="cover-blur" src={image} alt="" aria-hidden="true" loading="lazy" />
+      <img className="cover-img" src={image} alt="" loading="lazy" />
     </span>
   )
   const hue = hueFor(name)

@@ -1,26 +1,30 @@
 CREATE TABLE IF NOT EXISTS players (
-  id   INTEGER PRIMARY KEY,
+  id   SERIAL PRIMARY KEY,
   name TEXT NOT NULL UNIQUE
 );
 
 CREATE TABLE IF NOT EXISTS games (
-  id   INTEGER PRIMARY KEY,
-  name TEXT NOT NULL UNIQUE
+  id    SERIAL PRIMARY KEY,
+  name  TEXT NOT NULL UNIQUE,
+  image TEXT                -- cover image URL (Vercel Blob)
 );
 
 -- A session is one game night. date = the night it started (YYYY-MM-DD).
+-- Live sessions have started_at/ended_at (ISO timestamps); legacy ones don't.
 CREATE TABLE IF NOT EXISTS sessions (
-  id     INTEGER PRIMARY KEY,
-  date   TEXT NOT NULL,
-  legacy INTEGER NOT NULL DEFAULT 0
+  id         SERIAL PRIMARY KEY,
+  date       TEXT NOT NULL,
+  legacy     INTEGER NOT NULL DEFAULT 0,
+  started_at TEXT,
+  ended_at   TEXT
 );
 
 -- One play of a game within a session.
 CREATE TABLE IF NOT EXISTS plays (
-  id         INTEGER PRIMARY KEY,
+  id         SERIAL PRIMARY KEY,
   session_id INTEGER NOT NULL REFERENCES sessions(id),
   game_id    INTEGER NOT NULL REFERENCES games(id),
-  expansions TEXT,          -- pipe-separated, e.g. "Traders|Barbarians"
+  expansions TEXT,          -- pipe-separated original CSV text; play_expansions is the source of truth
   end_time   TEXT,
   notes      TEXT,
   legacy     INTEGER NOT NULL DEFAULT 0
@@ -43,7 +47,7 @@ CREATE TABLE IF NOT EXISTS auth_tokens (
 
 -- Expansions belong to a base game; renaming one updates every play that used it.
 CREATE TABLE IF NOT EXISTS expansions (
-  id      INTEGER PRIMARY KEY,
+  id      SERIAL PRIMARY KEY,
   game_id INTEGER NOT NULL REFERENCES games(id) ON DELETE CASCADE,
   name    TEXT NOT NULL,
   UNIQUE (game_id, name)
