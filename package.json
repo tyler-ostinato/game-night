@@ -1,0 +1,13 @@
+{
+  "name": "game-night",
+  "private": true,
+  "scripts": {
+    "setup": "npm install && npm --prefix server install && npm --prefix client install",
+    "dev": "concurrently -n api,site -c blue,green \"npm --prefix server run dev\" \"npm --prefix client run dev\"",
+    "dev:test": "concurrently -n api,site -c yellow,magenta \"npm --prefix server run dev:test\" \"npm --prefix client run dev:test\"",
+    "import": "npm --prefix server run import"
+  },
+  "devDependencies": {
+    "concurrently": "^10.0.6"
+  }
+}
