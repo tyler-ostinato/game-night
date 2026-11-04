@@ -7,7 +7,7 @@ Tracks our game nights: who played, who won, scores, records, and stats for each
 - **api/**: the entry point Vercel runs the server from
 - **data/** (not in git): the old SQLite database and covers, and the CSV of past results
 
-Hosted on Vercel. Every push to `main` deploys; other branches get a preview URL.
+Hosted on Vercel; see [Hosting and storage](#hosting-and-storage). Every push to `main` deploys.
 
 ## Getting started
 
@@ -33,6 +33,27 @@ Open http://localhost:5173. Both halves reload automatically when you edit code,
 | `npm run import` | Reload the legacy CSV (keeps game nights recorded on the site) |
 | `npm run migrate-sqlite` | One-off: copy `data/gamenight.db` and `data/images/` into Postgres and Blob |
 | `npm run setup` | Install dependencies for the root, server and client |
+
+## Hosting and storage
+
+```
+ Browser ──► Vercel ──┬── static site (client/dist)          built from client/ on every deploy
+                      └── /api/* ──► one serverless function  api/index.ts → server/src/app.ts
+                                         │
+                                         ├──► Neon Postgres   all results, players, games, logins
+                                         └──► Vercel Blob     game cover images (public URLs)
+```
+
+- **Vercel** hosts everything. `vercel.json` tells it to install all three packages, build the client into static files, and send every `/api/*` request to one function that runs the Express app. Nothing runs between requests, so the server keeps nothing in memory or on disk.
+- **Neon Postgres** holds all the data (tables in `server/src/schema.sql`). Vercel created it from the project's **Storage** tab and adds `DATABASE_URL` to the settings automatically. Live site, preview deploys and `npm run dev` all use **this same database**.
+- **Vercel Blob** holds the covers. It's a **public** store: anyone with an image's URL can view it (the URLs end in a long random suffix), but only the server can upload or delete. Each game's `image` column holds the full Blob URL, and the browser loads it straight from Blob.
+- **Settings** live in Vercel → Project → **Settings → Environment Variables**, separately for Production, Preview and Development. `npx vercel env pull` copies the Development ones into `.env.local`, which the server reads at startup. Change settings there, not in code.
+
+### Deploying
+
+- **Push to `main`:** Vercel builds and deploys it to the live site within a minute.
+- **Push another branch or open a pull request:** Vercel deploys it to its own preview URL. Previews use the **real** database, so don't try destructive things there; use [testing mode](#testing-mode).
+- **Backups:** Neon keeps restore points (Neon console → **Restore**). The old SQLite database is still in `data/` on Tyler's machine as a frozen backup from before the move.
 
 ## The site
 
@@ -74,13 +95,27 @@ A session is dated by the night it **started**, so a game finishing at 1am still
 - **Add a game:** the **+ Add game** button on the Games tab, or **+ New game** in the picker.
 - **Edit a game:** open it and press **Edit** to rename it, change its cover, or add, rename and delete expansions. Renaming updates history everywhere.
 - **Deleting:** a game or expansion can only be deleted if it has never been played, so history can't be lost. The server enforces this too.
-- **Covers:**
-  - In **Edit**, paste an image link or upload a photo. For an image link, right-click a box image on BoardGameGeek and choose *Copy image address*.
-  - The server keeps its own copy in Vercel Blob, so covers keep working if the original link dies.
-  - Uploads are shrunk in the browser first; the limit is 5 MB.
-  - The current covers came from BoardGameGeek. **Cluedo** uses BGG's *Clue (1949)* entry and **Dune** uses *Dune: Imperium (2020)*.
-- **BoardGameGeek search:** BGG's search API needs a free token (register at https://boardgamegeek.com/using_the_xml_api). Start the server with `BGG_TOKEN=...` to get a **Search BGG** box in the cover editor. This hasn't been tested with a real token yet.
+- **Covers:** see [Updating covers](#updating-covers) below.
+- **BoardGameGeek search:** BGG's search API needs a free token (register at https://boardgamegeek.com/using_the_xml_api). Add it as `BGG_TOKEN` in the Vercel settings to get a **Search BGG** box in the cover editor. This hasn't been tested with a real token yet.
 
+### Updating covers
+
+You never upload to Blob by hand. The site does it for you:
+
+1. On the live site, log in, open the game on the **Games** tab and press **Edit**.
+2. Under **Cover image**, either:
+   - **paste an image link** and press enter (on BoardGameGeek, right-click the box image → *Copy image address*), or
+   - **upload a file** from your computer or phone.
+3. Done. The new cover shows straight away.
+
+What happens behind the scenes:
+- The **server** downloads the image (or takes the upload), checks it's a JPG, PNG, WebP, GIF or AVIF under 5 MB, and saves its own copy to Blob as `covers/<game id>-<random>.<ext>`. Hot-linking isn't used, so covers keep working if the original link dies.
+- The game's `image` column is set to the new Blob URL, and the **old cover is deleted** from Blob. **Remove** deletes it and clears the column.
+- Uploads are shrunk in the browser first, which keeps them well under Vercel's 4.5 MB request limit.
+- Covers changed in **testing mode** go to `test-covers/` and only change the test database.
+- To see or clean up files, use Vercel → **Storage** → the Blob store → **Browser**. Deleting a file there doesn't clear the game's `image` column, so it shows a broken image until you set a new cover. Use the site's **Remove** button instead.
+
+The current covers came from BoardGameGeek. **Cluedo** uses BGG's *Clue (1949)* entry and **Dune** uses *Dune: Imperium (2020)*.
 ## How the stats work
 
 **Legacy data:** everything imported from `data/results.csv` is flagged `legacy`. It came from a handwritten notebook and mostly records only the winner. Everything entered on the site is non-legacy.
@@ -153,20 +188,44 @@ Cleanup already applied to the notebook data:
 
 ## Testing mode
 
-Use this to try things without touching real data.
+Testing mode is a private copy of the site for trying things out: logging fake game nights, testing a code change that writes data, or checking a cover upload. It touches a separate test database, never the real one.
 
 ```bash
 npm run dev:test    # test API on :3002, test site on http://localhost:5174
 ```
 
-- **Separate database:** it uses `TEST_DATABASE_URL` instead of `DATABASE_URL`, so it can't touch real results. Set it up once:
-  1. In the Neon console (Vercel → Storage → your database → Open in Neon), create a **branch** called `dev`. It starts as a copy of the real data.
-  2. Add its connection string to `.env.local` as `TEST_DATABASE_URL=...`.
-  3. To start over, use **Reset from parent** on that branch in Neon.
-- **Covers** uploaded in test mode go to a separate `test-covers/` folder in Blob.
-- **No password**, because the test API only accepts connections from this computer.
-- **Banner:** the site shows a yellow **TEST MODE** banner.
-- **Separate ports:** it runs alongside the normal site.
+**When to use it**
+
+| You want to… | Use |
+|---|---|
+| Change how something looks, or work on read-only pages | `npm run dev` is fine (real data, but you're only reading it) |
+| Start/end sessions, log plays, add or rename games, test a new write endpoint | `npm run dev:test` |
+| Show someone a change before it's live | A branch push (preview URL). Remember previews use real data |
+
+**Where it runs:** only on your own computer. It's never deployed. The test API only accepts connections from your machine, which is why it doesn't ask for the password. Never run it on a public server.
+
+**Where the test data lives:** in whatever Postgres database `TEST_DATABASE_URL` points at. The server refuses to start testing mode without it, so it can't fall back to the real database. Each person sets one up once:
+
+1. Open the database in Neon (Vercel → **Storage** → the database → **Open in Neon**).
+2. Create a **branch** (for example `dev-yourname`). A branch is a full copy of the real data at that moment, and changes to it never affect the real data.
+3. Copy the branch's connection string and add it in Vercel → **Settings → Environment Variables** as `TEST_DATABASE_URL`, ticked for **Development only**. Then run `npx vercel env pull`.
+   - It goes in Vercel rather than straight into `.env.local` because `vercel env pull` **overwrites** `.env.local` and would wipe anything you added by hand. If you share one test branch, one variable is enough. If you each want your own, add it to your `.env.local` by hand and add it back after every pull.
+4. Run `npm run dev:test`.
+
+**Starting over:** in Neon, open your branch and choose **Reset from parent**. It becomes a fresh copy of today's real data.
+
+**Prefer working offline?** Any Postgres works. For example, with Docker:
+
+```bash
+docker run -d --name gamenight-test -e POSTGRES_PASSWORD=test -p 55432:5432 postgres:16-alpine
+# in .env.local: TEST_DATABASE_URL=postgres://postgres:test@localhost:55432/postgres
+npm run db:setup -- --test     # create the (empty) tables
+```
+
+**Other details**
+- **Covers** uploaded in testing mode go to a separate `test-covers/` folder in the Blob store, so they never replace real covers.
+- **Banner:** the site shows a yellow **TEST MODE** banner so you can't mistake it for the real thing.
+- **Separate ports:** it runs alongside `npm run dev`.
 
 ## Code map
 
@@ -224,9 +283,3 @@ Read endpoints accept `?legacy=0` to leave out legacy games. Endpoints marked �
 | `PORT` | `3001` | API port |
 | `GAMENIGHT_TEST` | unset | `1` = test mode: no password, localhost only, banner (set by `dev:test`) |
 | `API_PORT` (client) | `3001` | Which API port the site talks to |
-
-## Deploying
-
-- **Automatic:** push to `main` and Vercel deploys it. Other branches and pull requests get their own preview URL, which uses the same real database.
-- **Settings** live in Vercel → Project → Settings → Environment Variables. Change them there, not in code.
-- **Backups:** Neon keeps restore points (Neon console → Restore). Never run testing mode on the public server, since it has no password.
