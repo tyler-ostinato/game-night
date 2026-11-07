@@ -5,12 +5,23 @@ export const SKINS = ['#f7d7bd', '#ecb994', '#d49c70', '#b0774a', '#8a5735', '#5
 export const HAIR_COLORS = ['#2b2420', '#4e3426', '#7a4b2a', '#a2451f', '#e2c06c', '#d97a2f', '#b5b5b5', '#4a74dc', '#e46aa6', '#3fae6b']
 export const SHIRTS = ['#e04f4f', '#f08a3c', '#f2c94c', '#4caf6a', '#2bb3a6', '#3f7fe0', '#8a5cd6', '#e36aa8', '#8a94a3', '#33373d']
 
+export const AVATARS = ['character', 'letter'] as const
+export const BODIES = ['neutral', 'male', 'female'] as const
 export const HAIR_STYLES = ['short', 'spiky', 'long', 'bun', 'curly', 'bald'] as const
-export const EXTRAS = ['none', 'glasses', 'shades', 'beard', 'mustache', 'cap', 'headband'] as const
+export const FACIAL_HAIR = ['none', 'stubble', 'mustache', 'beard'] as const
+export const EYEWEAR = ['none', 'glasses', 'shades'] as const
+export const HEADWEAR = ['none', 'cap', 'headband'] as const
 export type HairStyle = typeof HAIR_STYLES[number]
-export type Extra = typeof EXTRAS[number]
+export type Body = typeof BODIES[number]
+export type FacialHair = typeof FACIAL_HAIR[number]
+export type Eyewear = typeof EYEWEAR[number]
+export type Headwear = typeof HEADWEAR[number]
 
-export type Look = { skin: number; hair: HairStyle; hairColor: number; shirt: number; extra: Extra; accent: number }
+// avatar 'letter' = no character, just the coloured circle with their initial (still crowned).
+export type Look = {
+  avatar: typeof AVATARS[number]; body: Body; skin: number; hair: HairStyle; hairColor: number; shirt: number
+  facialHair: FacialHair; eyewear: Eyewear; headwear: Headwear; accent: number
+}
 
 const BASE = [
   '................',
@@ -92,7 +103,43 @@ const HAIR: Record<HairStyle, Layer> = {
   bald: { top: 5, rows: ['....WW..........'] },
 }
 
-const EXTRA: Record<Exclude<Extra, 'none'>, Layer> = {
+// Body shapes: neutral is the base drawing.
+const BODY: Record<Body, Layer[]> = {
+  neutral: [],
+  male: [
+    { top: 7, rows: ['....hh....hh....'] },              // eyebrows
+    { top: 12, rows: ['..KSSSSSSSSSSK..', '..KSSSSSSSSSSK..', '...KKSSSSSSKK...'] }, // squarer jaw
+  ],
+  female: [
+    { top: 7, rows: ['....K......K....'] },              // eyelashes
+    { top: 11, rows: ['.......PP.......'] },             // lips
+    { top: 15, rows: [                                    // narrower shoulders, v-neck
+      '....KTSSSSTK....',
+      '...KTTTSSTTTK...',
+      '..KTTTTTTTTTTK..',
+      '..KTtTTTTTTtTK..',
+      '..KTtTTTTTTtTK..',
+    ] },
+  ],
+}
+
+const FACIAL: Record<Exclude<FacialHair, 'none'>, Layer> = {
+  stubble: { top: 11, rows: [
+    '...b.b....b.b...',
+    '...bbbb..bbbb...',
+    '....bbbbbbbb....',
+  ] },
+  mustache: { top: 10, rows: ['.....KHHHHK.....'] },
+  beard: { top: 10, rows: [
+    '.....KHHHHK.....',
+    '..KH...MM...HK..',
+    '..KHHH....HHHK..',
+    '...KHHHHHHHHK...',
+    '....KHHHHHHK....',
+  ] },
+}
+
+const EYES: Record<Exclude<Eyewear, 'none'>, Layer> = {
   glasses: { top: 7, rows: [
     '...GGGG..GGGG...',
     '...GLEGGGGELG...',
@@ -104,13 +151,9 @@ const EXTRA: Record<Exclude<Extra, 'none'>, Layer> = {
     '...GEEEGGEEEG...',
     '....GGG..GGG....',
   ] },
-  beard: { top: 11, rows: [
-    '..KH...MM...HK..',
-    '..KHHH....HHHK..',
-    '...KHHHHHHHHK...',
-    '....KHHHHHHK....',
-  ] },
-  mustache: { top: 10, rows: ['.....KHHHHK.....'] },
+}
+
+const HATS: Record<Exclude<Headwear, 'none'>, Layer> = {
   cap: { top: 2, rows: [
     '....KKKKKKKK....',
     '...KAAAAAAAAK...',
@@ -149,20 +192,40 @@ export function defaultLook(name: string): Look {
   for (const c of name.toLowerCase()) h = Math.imul(h ^ c.charCodeAt(0), 16777619) >>> 0
   const pick = (n: number) => { const v = h % n; h = Math.imul(h ^ (h >>> 13), 2654435761) >>> 0; return v }
   return {
+    avatar: 'character',
+    body: 'neutral',                                  // never guessed from a name
     skin: pick(SKINS.length),
     hair: HAIR_STYLES[pick(HAIR_STYLES.length - 1)], // never bald by default
     hairColor: pick(6),                               // natural colours by default
     shirt: pick(SHIRTS.length),
-    extra: 'none',
+    facialHair: 'none', eyewear: 'none', headwear: 'none',
     accent: pick(SHIRTS.length),
   }
+}
+
+// Characters saved before facial hair, eyewear and headwear were separate had one `extra`.
+export function normalizeLook(v: unknown): Look | null {
+  if (!v || typeof v !== 'object') return null
+  const o = v as Record<string, unknown>
+  const extra = o.extra as string | undefined
+  const l = {
+    avatar: 'character', body: 'neutral', facialHair: 'none', eyewear: 'none', headwear: 'none',
+    ...(extra && (FACIAL_HAIR as readonly string[]).includes(extra) ? { facialHair: extra } : {}),
+    ...(extra && (EYEWEAR as readonly string[]).includes(extra) ? { eyewear: extra } : {}),
+    ...(extra && (HEADWEAR as readonly string[]).includes(extra) ? { headwear: extra } : {}),
+    ...o,
+  }
+  delete (l as Record<string, unknown>).extra
+  return isLook(l) ? l : null
 }
 
 export function isLook(v: unknown): v is Look {
   const l = v as Look
   const idx = (x: unknown, n: number) => Number.isInteger(x) && (x as number) >= 0 && (x as number) < n
-  return !!l && typeof l === 'object' && idx(l.skin, SKINS.length) && HAIR_STYLES.includes(l.hair)
-    && idx(l.hairColor, HAIR_COLORS.length) && idx(l.shirt, SHIRTS.length) && EXTRAS.includes(l.extra) && idx(l.accent, SHIRTS.length)
+  const one = <T,>(xs: readonly T[], x: unknown) => xs.includes(x as T)
+  return !!l && typeof l === 'object' && one(AVATARS, l.avatar) && one(BODIES, l.body) && idx(l.skin, SKINS.length)
+    && one(HAIR_STYLES, l.hair) && idx(l.hairColor, HAIR_COLORS.length) && idx(l.shirt, SHIRTS.length)
+    && one(FACIAL_HAIR, l.facialHair) && one(EYEWEAR, l.eyewear) && one(HEADWEAR, l.headwear) && idx(l.accent, SHIRTS.length)
 }
 
 export type Pixel = { x: number; y: number; w: number; color: string }
@@ -173,16 +236,19 @@ export function render(look: Look, place?: 1 | 2 | 3): Pixel[] {
   const crown = place ? CROWN_COLORS[place] : null
   const colors: Record<string, string> = {
     K: '#1e1b24', S: skin, s: shade(skin, 0.15), E: '#1e1b24', M: shade(skin, 0.35), W: '#ffffff',
-    T: shirt, t: shade(shirt, 0.18), H: hair, h: shade(hair, 0.25), G: '#4a4f5c', L: '#d6ecff', A: accent, a: shade(accent, 0.25),
+    P: '#c8506e', b: shade(skin, 0.22), T: shirt, t: shade(shirt, 0.18), H: hair, h: shade(hair, 0.25), G: '#4a4f5c', L: '#d6ecff', A: accent, a: shade(accent, 0.25),
     C: crown?.[0] ?? '', c: crown?.[1] ?? '', J: crown?.[2] ?? '',
   }
   const grid = BASE.map(r => r.split(''))
   const draw = (layer: Layer) => layer.rows.forEach((row, i) => [...row].forEach((ch, x) => {
     if (ch !== '.' && grid[layer.top + i]) grid[layer.top + i][x] = ch
   }))
-  // A crown replaces a hat, so the winner's crown always shows.
+  BODY[look.body].forEach(draw)
   draw(HAIR[look.hair])
-  if (look.extra !== 'none' && !(crown && look.extra === 'cap')) draw(EXTRA[look.extra])
+  if (look.facialHair !== 'none') draw(FACIAL[look.facialHair])
+  if (look.eyewear !== 'none') draw(EYES[look.eyewear])
+  // A crown replaces a cap, so the winner's crown always shows.
+  if (look.headwear !== 'none' && !(crown && look.headwear === 'cap')) draw(HATS[look.headwear])
   if (crown) draw(CROWN)
 
   const out: Pixel[] = []

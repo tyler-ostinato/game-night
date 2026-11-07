@@ -113,19 +113,27 @@ app.post('/api/players', requireAuth, async (req, res) => {
 });
 
 // 8-bit characters. Must match the options in client/src/sprite.ts.
-const LOOK_OPTIONS = { skin: 6, hairColor: 10, shirt: 10, accent: 10 } as const;
-const HAIR_STYLES = ['short', 'spiky', 'long', 'bun', 'curly', 'bald'];
-const EXTRAS = ['none', 'glasses', 'shades', 'beard', 'mustache', 'cap', 'headband'];
+const LOOK_COLORS = { skin: 6, hairColor: 10, shirt: 10, accent: 10 } as const;
+const LOOK_CHOICES = {
+  avatar: ['character', 'letter'], body: ['neutral', 'male', 'female'],
+  hair: ['short', 'spiky', 'long', 'bun', 'curly', 'bald'], facialHair: ['none', 'stubble', 'mustache', 'beard'],
+  eyewear: ['none', 'glasses', 'shades'], headwear: ['none', 'cap', 'headband'],
+} as const;
 
+// Only the known fields, each one checked; anything else is dropped.
 function cleanLook(v: unknown) {
   const l = v as Record<string, unknown>;
   if (!l || typeof l !== 'object') return null;
-  for (const [k, n] of Object.entries(LOOK_OPTIONS)) {
+  const out: Record<string, unknown> = {};
+  for (const [k, n] of Object.entries(LOOK_COLORS)) {
     if (!Number.isInteger(l[k]) || (l[k] as number) < 0 || (l[k] as number) >= n) return null;
+    out[k] = l[k];
   }
-  if (!HAIR_STYLES.includes(l.hair as string) || !EXTRAS.includes(l.extra as string)) return null;
-  const { skin, hair, hairColor, shirt, extra, accent } = l;
-  return { skin, hair, hairColor, shirt, extra, accent };
+  for (const [k, options] of Object.entries(LOOK_CHOICES)) {
+    if (!(options as readonly unknown[]).includes(l[k])) return null;
+    out[k] = l[k];
+  }
+  return out;
 }
 
 // Every customised character, by player name.

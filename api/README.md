@@ -21,7 +21,7 @@ Read endpoints accept `?legacy=0` to leave out legacy games. Endpoints marked �
 | GET | `/api/players`, `/api/players/:name` | Player list and profile |
 | POST 🔒 | `/api/players` | Add a player |
 | GET | `/api/looks` | Every customised 8-bit character, by player name |
-| PUT 🔒 | `/api/players/:name/look` | Save a character: `{ skin, hair, hairColor, shirt, extra, accent }` (options in `client/src/sprite.ts`) |
+| PUT 🔒 | `/api/players/:name/look` | Save a character: `{ avatar, body, skin, hair, hairColor, facialHair, eyewear, headwear, accent, shirt }` (options in `client/src/sprite.ts`) |
 | GET | `/api/records` | High score per game |
 | GET | `/api/games`, `/api/games/:id/stats` | Game list and game page |
 | POST/PATCH/DELETE 🔒 | `/api/games`, `/api/games/:id` | Add, rename, delete a game |

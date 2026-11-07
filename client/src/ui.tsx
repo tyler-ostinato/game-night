@@ -23,14 +23,24 @@ export function Sprite({ look, place, size }: { look: Look; place?: Place; size?
   )
 }
 
-// A player's 8-bit character in a coloured circle. Pass their place (1-3) in whatever ranking
-// is on screen and they wear the matching crown.
+// A player's 8-bit character (or just their initial, if they chose that) in a coloured circle.
+// Pass their place (1-3) in whatever ranking is on screen and they wear the matching crown.
 export function Avatar({ name, size = 40, place }: { name: string; size?: number; place?: number }) {
   const look = useLook(name)
   const hue = hueFor(name)
   const crown = place && place >= 1 && place <= 3 ? place as Place : undefined
+  const title = crown ? `${name} · ${ordinal(crown)}` : name
+  if (look.avatar === 'letter') return (
+    <span className="avatar-letter-wrap" style={{ width: size, height: size }} title={title}>
+      <span className="avatar letter" style={{
+        width: size, height: size, fontSize: size * 0.42,
+        background: `linear-gradient(135deg, hsl(${hue} 70% 58%), hsl(${hue + 25} 65% 45%))`,
+      }}>{name[0]?.toUpperCase()}</span>
+      {crown && <span className="avatar-crown"><Crown place={crown} size={Math.max(14, size * 0.5)} /></span>}
+    </span>
+  )
   return (
-    <span className="avatar" title={crown ? `${name} · ${ordinal(crown)}` : name} style={{
+    <span className="avatar" title={title} style={{
       width: size, height: size,
       background: `linear-gradient(160deg, hsl(${hue} 75% 82%), hsl(${hue + 25} 60% 64%))`,
     }}>

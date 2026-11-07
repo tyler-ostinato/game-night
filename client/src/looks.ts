@@ -1,7 +1,7 @@
 // Every player's 8-bit character, loaded once and shared by all avatars on the page.
-import { useSyncExternalStore } from 'react'
+import { useMemo, useSyncExternalStore } from 'react'
 import { api } from './api'
-import { defaultLook, isLook, type Look } from './sprite'
+import { defaultLook, normalizeLook, type Look } from './sprite'
 
 let looks: Record<string, Look> = {}
 let requested = false
@@ -24,7 +24,6 @@ export function setLook(name: string, look: Look) {
 // A player's character: their saved one, or the default made from their name.
 export function useLook(name: string): Look {
   load()
-  const all = useSyncExternalStore(subscribe, () => looks)
-  const saved = all[name]
-  return isLook(saved) ? saved : defaultLook(name)
+  const saved = useSyncExternalStore(subscribe, () => looks)[name]
+  return useMemo(() => normalizeLook(saved) ?? defaultLook(name), [saved, name])
 }

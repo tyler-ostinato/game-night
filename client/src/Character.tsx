@@ -1,19 +1,27 @@
-// Character builder: pick skin, hair, shirt and an extra; the preview updates as you go.
+// Character builder: choose a character or just a letter, then body, skin, hair, facial hair,
+// eyewear, headwear and shirt. The preview updates as you go.
 import { useState } from 'react'
 import { api, getToken } from './api'
 import { Login } from './Login'
 import { setLook, useLook } from './looks'
-import { EXTRAS, HAIR_COLORS, HAIR_STYLES, SHIRTS, SKINS, type Extra, type HairStyle, type Look } from './sprite'
-import { Sprite } from './ui'
+import {
+  BODIES, EYEWEAR, FACIAL_HAIR, HAIR_COLORS, HAIR_STYLES, HEADWEAR, SHIRTS, SKINS, type Look,
+} from './sprite'
+import { Avatar, Sprite } from './ui'
 
-const EXTRA_LABELS: Record<Extra, string> = {
-  none: 'None', glasses: 'Glasses', shades: 'Shades', beard: 'Beard', mustache: 'Mustache', cap: 'Cap', headband: 'Headband',
+const LABELS: Record<string, string> = {
+  neutral: 'Neutral', male: 'Male', female: 'Female', none: 'None', stubble: 'Stubble', mustache: 'Mustache', beard: 'Beard',
+  glasses: 'Glasses', shades: 'Shades', cap: 'Cap', headband: 'Headband',
+  short: 'Short', spiky: 'Spiky', long: 'Long', bun: 'Bun', curly: 'Curly', bald: 'Bald',
 }
 
-const randomLook = (): Look => {
+const randomLook = (body: Look['body']): Look => {
   const pick = <T,>(xs: readonly T[]) => xs[Math.floor(Math.random() * xs.length)]
   const idx = (n: number) => Math.floor(Math.random() * n)
-  return { skin: idx(SKINS.length), hair: pick(HAIR_STYLES), hairColor: idx(HAIR_COLORS.length), shirt: idx(SHIRTS.length), extra: pick(EXTRAS), accent: idx(SHIRTS.length) }
+  return {
+    avatar: 'character', body, skin: idx(SKINS.length), hair: pick(HAIR_STYLES), hairColor: idx(HAIR_COLORS.length),
+    shirt: idx(SHIRTS.length), facialHair: pick(FACIAL_HAIR), eyewear: pick(EYEWEAR), headwear: pick(HEADWEAR), accent: idx(SHIRTS.length),
+  }
 }
 
 function Swatches({ label, colors, value, onChange }: { label: string; colors: string[]; value: number; onChange: (i: number) => void }) {
@@ -29,6 +37,8 @@ function Swatches({ label, colors, value, onChange }: { label: string; colors: s
     </fieldset>
   )
 }
+
+type Slot = 'body' | 'hair' | 'facialHair' | 'eyewear' | 'headwear'
 
 export function CharacterEditor({ name, testMode, onDone }: { name: string; testMode: boolean; onDone: () => void }) {
   const saved = useLook(name)
@@ -51,40 +61,61 @@ export function CharacterEditor({ name, testMode, onDone }: { name: string; test
     } finally { setSaving(false) }
   }
 
-  const option = <T extends string>(field: 'hair' | 'extra', value: T, text: string) => (
-    <button key={value} type="button" className={look[field] === value ? 'char-option on' : 'char-option'}
-      aria-pressed={look[field] === value} onClick={() => set(field, value as Look[typeof field])}>
-      <Sprite look={{ ...look, [field]: value }} size={44} />
-      <span>{text}</span>
-    </button>
+  // Each choice is a little version of the character wearing that option.
+  const choices = <K extends Slot>(label: string, field: K, options: readonly Look[K][]) => (
+    <fieldset className="char-row">
+      <legend>{label}</legend>
+      <div className="char-grid">
+        {options.map(value => (
+          <button key={value} type="button" className={look[field] === value ? 'char-option on' : 'char-option'}
+            aria-pressed={look[field] === value} onClick={() => set(field, value)}>
+            <Sprite look={{ ...look, [field]: value }} size={44} />
+            <span>{LABELS[value]}</span>
+          </button>
+        ))}
+      </div>
+    </fieldset>
   )
 
+  const letter = look.avatar === 'letter'
   return (
     <div className="card char-editor">
       <div className="char-preview">
-        <div className="char-stage"><Sprite look={look} /></div>
-        <div className="char-crowns" aria-label="With a crown">
-          {([1, 2, 3] as const).map(p => <Sprite key={p} look={look} place={p} size={48} />)}
+        <div className="char-stage">
+          {letter ? <Avatar name={name} size={140} /> : <Sprite look={look} />}
         </div>
-        <button type="button" className="ghost" onClick={() => setDraft(randomLook())}>🎲 Surprise me</button>
+        {!letter && <>
+          <div className="char-crowns" aria-label="With a crown">
+            {([1, 2, 3] as const).map(p => <Sprite key={p} look={look} place={p} size={48} />)}
+          </div>
+          <button type="button" className="ghost" onClick={() => setDraft(randomLook(look.body))}>🎲 Surprise me</button>
+        </>}
       </div>
       <div className="char-options">
-        <Swatches label="Skin" colors={SKINS} value={look.skin} onChange={i => set('skin', i)} />
         <fieldset className="char-row">
-          <legend>Hair</legend>
-          <div className="char-grid">{HAIR_STYLES.map(h => option<HairStyle>('hair', h, h[0].toUpperCase() + h.slice(1)))}</div>
+          <legend>Picture</legend>
+          <div className="segmented" role="group" aria-label="Picture">
+            <button type="button" className={letter ? '' : 'on'} aria-pressed={!letter} onClick={() => set('avatar', 'character')}>8-bit character</button>
+            <button type="button" className={letter ? 'on' : ''} aria-pressed={letter} onClick={() => set('avatar', 'letter')}>Just my initial</button>
+          </div>
+          {letter && <p className="muted">No character: a coloured circle with your initial. Crowns still show when you place.</p>}
         </fieldset>
-        {look.hair !== 'bald' && <Swatches label="Hair colour" colors={HAIR_COLORS} value={look.hairColor} onChange={i => set('hairColor', i)} />}
-        <Swatches label="Shirt" colors={SHIRTS} value={look.shirt} onChange={i => set('shirt', i)} />
-        <fieldset className="char-row">
-          <legend>Extra</legend>
-          <div className="char-grid">{EXTRAS.map(x => option<Extra>('extra', x, EXTRA_LABELS[x]))}</div>
-        </fieldset>
-        {(look.extra === 'cap' || look.extra === 'headband') &&
-          <Swatches label={look.extra === 'cap' ? 'Cap colour' : 'Headband colour'} colors={SHIRTS} value={look.accent} onChange={i => set('accent', i)} />}
+        {!letter && <>
+          {choices('Body', 'body', BODIES)}
+          <Swatches label="Skin" colors={SKINS} value={look.skin} onChange={i => set('skin', i)} />
+          {choices('Hair', 'hair', HAIR_STYLES)}
+          {(look.hair !== 'bald' || look.facialHair !== 'none' || look.body === 'male') &&
+            <Swatches label="Hair colour" colors={HAIR_COLORS} value={look.hairColor} onChange={i => set('hairColor', i)} />}
+          {choices('Facial hair', 'facialHair', FACIAL_HAIR)}
+          {choices('Eyewear', 'eyewear', EYEWEAR)}
+          {choices('Headwear', 'headwear', HEADWEAR)}
+          {look.headwear !== 'none' &&
+            <Swatches label={look.headwear === 'cap' ? 'Cap colour' : 'Headband colour'} colors={SHIRTS} value={look.accent} onChange={i => set('accent', i)} />}
+          <Swatches label="Shirt" colors={SHIRTS} value={look.shirt} onChange={i => set('shirt', i)} />
+        </>}
         {error && <p className="error">{error}</p>}
         <div className="actions">
-          <button type="button" className="primary" disabled={saving} onClick={save}>{saving ? 'Saving…' : 'Save character'}</button>
+          <button type="button" className="primary" disabled={saving} onClick={save}>{saving ? 'Saving…' : 'Save'}</button>
           <button type="button" onClick={onDone}>Cancel</button>
         </div>
       </div>
