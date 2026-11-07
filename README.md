@@ -23,10 +23,10 @@ Tracks our game nights: who played, who won, scores, records, and stats for each
 
 ### 8-bit characters
 
-Every player is drawn as a little 8-bit character, everywhere their picture appears. Until someone designs theirs, they get one made from their name (the same name always gives the same character).
+Players can be drawn as a little 8-bit character, everywhere their picture appears. Everyone starts with their **initial** in a coloured circle; switching to a character is opt-in. The editor starts them from a character made from their name (the same name always gives the same one).
 
 - **Design one:** open the player's profile and press **Edit character**. Pick a body (neutral, male or female), skin, hair style and colour, facial hair (stubble, mustache, beard), eyewear (glasses, shades), headwear (cap, headband) and shirt, or press **🎲 Surprise me**. Facial hair, eyewear and headwear can be combined. The preview updates as you go and shows how they look with each crown. Saving needs the password.
-- **Rather not have one?** Choose **Just my initial** in the editor for the plain coloured circle with their first letter. They still get a crown when they place.
+- **Initials** (the default, or **Just my initial** in the editor) still get a crown when they place.
 - Defaults are always the neutral body: the site never guesses from a name.
 - **Crowns are automatic.** Whoever is 1st, 2nd or 3rd in the ranking you're looking at wears a gold, silver or bronze crown: the overall standings on the Leaderboard and Players tabs, and that game's standings on a game's page and tile. They follow the legacy switch, and need at least one win. A crown replaces a cap.
 

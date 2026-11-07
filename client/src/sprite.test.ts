@@ -13,6 +13,10 @@ describe('defaultLook', () => {
     expect(isLook(defaultLook('Tyler'))).toBe(true)
   })
 
+  it('shows initials until someone designs a character', () => {
+    expect(defaultLook('Tyler').avatar).toBe('letter')
+  })
+
   it('never guesses a body type from the name', () => {
     for (const n of ['Tyler', 'Dunja', 'Sam', 'Alex']) expect(defaultLook(n).body).toBe('neutral')
   })

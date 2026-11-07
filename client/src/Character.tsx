@@ -42,7 +42,8 @@ type Slot = 'body' | 'hair' | 'facialHair' | 'eyewear' | 'headwear'
 
 export function CharacterEditor({ name, testMode, onDone }: { name: string; testMode: boolean; onDone: () => void }) {
   const saved = useLook(name)
-  const [look, setDraft] = useState<Look>(saved)
+  // Opening the editor shows the character straight away; they can still choose the initial.
+  const [look, setDraft] = useState<Look>(() => ({ ...saved, avatar: 'character' }))
   const [loggedIn, setLoggedIn] = useState(!!getToken())
   const [error, setError] = useState('')
   const [saving, setSaving] = useState(false)

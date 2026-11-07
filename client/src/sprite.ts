@@ -186,13 +186,14 @@ export function shade(hex: string, amount = 0.2) {
   return `#${((ch(16) << 16) | (ch(8) << 8) | ch(0)).toString(16).padStart(6, '0')}`
 }
 
-// Same name → same character, so everyone has one before customising.
+// Players who haven't designed a character show their initial. The rest of the default look is a
+// character made from their name (same name → same character), ready if they switch to one.
 export function defaultLook(name: string): Look {
   let h = 2166136261
   for (const c of name.toLowerCase()) h = Math.imul(h ^ c.charCodeAt(0), 16777619) >>> 0
   const pick = (n: number) => { const v = h % n; h = Math.imul(h ^ (h >>> 13), 2654435761) >>> 0; return v }
   return {
-    avatar: 'character',
+    avatar: 'letter',
     body: 'neutral',                                  // never guessed from a name
     skin: pick(SKINS.length),
     hair: HAIR_STYLES[pick(HAIR_STYLES.length - 1)], // never bald by default
