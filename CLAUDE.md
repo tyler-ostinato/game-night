@@ -1,6 +1,19 @@
 # CLAUDE.md
 
-Game Night tracker: Express API (`server/`) + React/Vite site (`client/`) on Vercel, Postgres on Neon, covers in Vercel Blob. `README.md` is the source of truth for how everything works; read the relevant section before changing behaviour.
+Game Night tracker: Express API (`server/`) + React/Vite site (`client/`) on Vercel, Postgres on Neon, covers in Vercel Blob.
+
+Docs are the source of truth; read the relevant one before changing behaviour, and update it in the same commit:
+- `README.md`: what the site does and how to use it (features, flows, stats rules)
+- `docs/development.md`: setup, commands, testing mode, hosting, deploying, settings, code map
+- `docs/data.md`: tables, legacy CSV, `data/` folder
+- `api/README.md`: every API route (add new routes here)
+
+## First session on a new machine
+
+At the start of a session, check the developer is set up, and help them finish if not:
+- `git config core.hooksPath` should print `.githooks`. If not (or `node_modules` is missing), run `npm run setup`, which installs everything and turns on the pre-commit check.
+- `.env.local` should exist. If not, they need access to the Vercel project (ask Tyler), then `npx vercel login`, `npx vercel link`, `npx vercel env pull`.
+- For testing mode, `.env.local` needs `TEST_DATABASE_URL` (see `docs/development.md` > Testing mode).
 
 ## Deploying = pushing to `main`
 
@@ -9,7 +22,7 @@ There are no PRs or branches by default. **Every push to `main` deploys to the l
 Before every commit:
 1. `npm run check` (or `just check`) passes: typecheck server + client, lint, unit tests. The pre-commit hook in `.githooks/` runs it automatically; never bypass it with `--no-verify` unless the user explicitly says to.
 2. Anything that writes data was tried in **testing mode** (`just test-up`, http://localhost:5174), not against real data.
-3. `README.md` is updated in the same commit if the change is something a user or developer would notice (new feature, changed flow, new command, new setting).
+3. The docs above are updated in the same commit if the change is something a user or developer would notice (new feature, changed flow, new command, new setting, new route).
 4. Push only when the user asks. After pushing, mention that GitHub Actions re-runs the checks and Vercel deploys.
 
 ## Hard rules
@@ -45,6 +58,7 @@ One logical change per commit. Who made a change is recorded by git (author) and
 | `just check` / `npm run check` | Everything CI runs |
 | `npm test` | Unit tests only (Vitest) |
 | `npm run dev` | Real database. Only for read-only or visual work |
+| `npm run db:setup -- --test`, `npm run import` | Command-line tools in `server/scripts/` |
 
 ## Tests
 

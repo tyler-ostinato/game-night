@@ -2,7 +2,7 @@
   "name": "game-night",
   "private": true,
   "scripts": {
-    "setup": "npm install && npm --prefix server install && npm --prefix client install && git config core.hooksPath .githooks",
+    "setup": "npm install && npm --prefix server install && npm --prefix client install && (git config core.hooksPath .githooks 2>/dev/null || true)",
     "dev": "concurrently -n api,site -c blue,green \"npm --prefix server run dev\" \"npm --prefix client run dev\"",
     "dev:test": "concurrently -n api,site -c yellow,magenta \"npm --prefix server run dev:test\" \"npm --prefix client run dev:test\"",
     "db:setup": "npm --prefix server run db:setup --",

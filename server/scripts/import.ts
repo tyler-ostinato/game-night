@@ -1,7 +1,7 @@
 // Import of data/results.csv. Re-running replaces legacy data only; live sessions are kept.
-import './env.js';
+import '../src/env.js';
 import { readFileSync } from 'node:fs';
-import { sql, idFor, expansionIdFor, resetSequences } from './db.js';
+import { sql, idFor, expansionIdFor, resetSequences } from '../src/db.js';
 
 function parseCsv(text: string): string[][] {
   const rows: string[][] = [];

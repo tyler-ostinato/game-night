@@ -4,13 +4,12 @@
   "description": "",
   "main": "index.js",
   "scripts": {
-    "test": "echo \"Error: no test specified\" && exit 1",
     "dev": "tsx watch src/index.ts",
-    "import": "tsx src/import.ts",
+    "import": "tsx scripts/import.ts",
     "typecheck": "tsc",
     "dev:test": "PORT=3002 GAMENIGHT_TEST=1 tsx watch src/index.ts",
-    "db:setup": "tsx src/setup-db.ts",
-    "migrate-sqlite": "tsx src/migrate-sqlite.ts"
+    "db:setup": "tsx scripts/setup-db.ts",
+    "migrate-sqlite": "tsx scripts/migrate-sqlite.ts"
   },
   "keywords": [],
   "author": "",

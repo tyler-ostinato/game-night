@@ -1,12 +1,12 @@
 // One-off: copies data/gamenight.db and data/images into Postgres + Vercel Blob.
 // Refuses to run if the Postgres database already has games, so it can't double up.
-import './env.js';
+import '../src/env.js';
 import Database from 'better-sqlite3';
 import { existsSync, readFileSync } from 'node:fs';
 import { put } from '@vercel/blob';
-import { sql, resetSequences } from './db.js';
+import { sql, resetSequences } from '../src/db.js';
 
-await sql.unsafe(readFileSync(new URL('schema.sql', import.meta.url), 'utf8'));
+await sql.unsafe(readFileSync(new URL('../src/schema.sql', import.meta.url), 'utf8'));
 if ((await sql`SELECT 1 FROM games LIMIT 1`).length) {
   console.error('Postgres already has games in it; not migrating again.');
   process.exit(1);
