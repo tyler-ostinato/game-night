@@ -2,7 +2,8 @@ import { useEffect, useState } from 'react'
 import { api, getToken } from './api'
 import { NameForm } from './Games'
 import { Login } from './Login'
-import { Avatar, Crown, Empty, Trophy, ordinal, plural, prettyDate, type Place } from './ui'
+import { Avatar, Empty, Trophy, ordinal, plural, prettyDate } from './ui'
+import { CharacterEditor } from './Character'
 
 type Summary = { name: string; wins: number; played: number; nights: number; completePlayed: number; winRate: number | null }
 
@@ -58,8 +59,7 @@ export function PlayersPage({ testMode, onPlayer }: { testMode: boolean; onPlaye
           return (
             <button key={p.name} className="player-card" onClick={() => onPlayer(p.name)}>
               <span className="player-card-top">
-                <Avatar name={p.name} size={52} />
-                {place <= 3 && p.wins > 0 && <Crown place={place as Place} size={24} />}
+                <Avatar name={p.name} size={56} place={p.wins > 0 ? place : undefined} />
               </span>
               <span className="player-name">{p.name}</span>
               {p.played === 0 ? <span className="muted">No games yet</span> :
@@ -86,8 +86,9 @@ function Stat({ label, value, sub }: { label: string; value: React.ReactNode; su
   )
 }
 
-export function PlayerProfile({ name, onPlayer, onBack }: { name: string; onPlayer: (name: string) => void; onBack: () => void }) {
+export function PlayerProfile({ name, testMode, onPlayer, onBack }: { name: string; testMode: boolean; onPlayer: (name: string) => void; onBack: () => void }) {
   const { data: p, error } = useFetch<Profile>(`/players/${encodeURIComponent(name)}`)
+  const [editing, setEditing] = useState(false)
   if (error === 'Not found') return (
     <section className="stack">
       <button className="back" onClick={onBack}>← All players</button>
@@ -102,13 +103,15 @@ export function PlayerProfile({ name, onPlayer, onBack }: { name: string; onPlay
     <section className="stack">
       <button className="back" onClick={onBack}>← All players</button>
       <div className="profile-hero">
-        <Avatar name={p.name} size={88} />
+        <Avatar name={p.name} size={104} />
         <div>
           <h2>{p.name}</h2>
           <p className="muted">Playing since {prettyDate(p.firstPlayed)} · last played {prettyDate(p.lastPlayed)}</p>
         </div>
         <div className="hero-wins"><span>{p.wins}</span>{p.wins === 1 ? 'win' : 'wins'}</div>
+        {!editing && <button className="hero-edit" onClick={() => setEditing(true)}>Edit character</button>}
       </div>
+      {editing && <CharacterEditor name={p.name} testMode={testMode} onDone={() => setEditing(false)} />}
 
       <div className="stat-grid">
         <Stat label="Games recorded" value={p.played} />

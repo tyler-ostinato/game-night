@@ -1,4 +1,7 @@
+import { useMemo } from 'react'
 import { getShowLegacy } from './api'
+import { useLook } from './looks'
+import { render, type Look } from './sprite'
 
 // Shared visual bits: avatars, crowns, medals.
 
@@ -10,14 +13,28 @@ function hueFor(name: string) {
   return AVATAR_HUES[h % AVATAR_HUES.length]
 }
 
-export function Avatar({ name, size = 40 }: { name: string; size?: number }) {
-  const hue = hueFor(name)
+// The pixel character itself, drawn as crisp SVG rectangles.
+export function Sprite({ look, place, size }: { look: Look; place?: Place; size?: number }) {
+  const pixels = useMemo(() => render(look, place), [look, place])
   return (
-    <span className="avatar" style={{
-      width: size, height: size, fontSize: size * 0.42,
-      background: `linear-gradient(135deg, hsl(${hue} 70% 58%), hsl(${hue + 25} 65% 45%))`,
+    <svg className="sprite" viewBox="-2.5 -0.5 21 21" width={size ?? '100%'} height={size ?? '100%'} shapeRendering="crispEdges" aria-hidden="true">
+      {pixels.map((p, i) => <rect key={i} x={p.x} y={p.y} width={p.w} height={1.02} fill={p.color} />)}
+    </svg>
+  )
+}
+
+// A player's 8-bit character in a coloured circle. Pass their place (1-3) in whatever ranking
+// is on screen and they wear the matching crown.
+export function Avatar({ name, size = 40, place }: { name: string; size?: number; place?: number }) {
+  const look = useLook(name)
+  const hue = hueFor(name)
+  const crown = place && place >= 1 && place <= 3 ? place as Place : undefined
+  return (
+    <span className="avatar" title={crown ? `${name} · ${ordinal(crown)}` : name} style={{
+      width: size, height: size,
+      background: `linear-gradient(160deg, hsl(${hue} 75% 82%), hsl(${hue + 25} 60% 64%))`,
     }}>
-      {name[0]?.toUpperCase()}
+      <Sprite look={look} place={crown} />
     </span>
   )
 }

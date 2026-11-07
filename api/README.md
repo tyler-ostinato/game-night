@@ -20,6 +20,8 @@ Read endpoints accept `?legacy=0` to leave out legacy games. Endpoints marked �
 | POST 🔒 | `/api/plays` | Add a game to the running session |
 | GET | `/api/players`, `/api/players/:name` | Player list and profile |
 | POST 🔒 | `/api/players` | Add a player |
+| GET | `/api/looks` | Every customised 8-bit character, by player name |
+| PUT 🔒 | `/api/players/:name/look` | Save a character: `{ skin, hair, hairColor, shirt, extra, accent }` (options in `client/src/sprite.ts`) |
 | GET | `/api/records` | High score per game |
 | GET | `/api/games`, `/api/games/:id/stats` | Game list and game page |
 | POST/PATCH/DELETE 🔒 | `/api/games`, `/api/games/:id` | Add, rename, delete a game |

@@ -3,7 +3,7 @@ import { api, getToken, setToken, getShowLegacy, setShowLegacy } from './api'
 import { Login } from './Login'
 import { ActivityChart, RangeFilter, presetRange, type Range } from './Activity'
 import { PlayersPage, PlayerProfile } from './Players'
-import { Avatar, Crown, Empty, Trophy, ordinal, plural, prettyDate, type Place } from './ui'
+import { Avatar, Crown, Empty, Trophy, ordinal, plural, prettyDate } from './ui'
 import { GamesPage, GamePicker, type Picked } from './Games'
 import { endTimeFor, isoDate } from './time'
 
@@ -69,7 +69,7 @@ export default function App() {
         </div>
       </header>
       <main className="page" key={`${version}-${showLegacy}`}>
-        {player ? <PlayerProfile name={player} onPlayer={showPlayer} onBack={() => open('players')} />
+        {player ? <PlayerProfile name={player} testMode={!!mode?.test} onPlayer={showPlayer} onBack={() => open('players')} />
           : tab === 'players' ? <PlayersPage testMode={!!mode?.test} onPlayer={showPlayer} />
           : tab === 'leaderboard' ? <Leaderboard onPlayer={showPlayer} />
           : tab === 'history' ? <History onPlayer={showPlayer} />
@@ -122,8 +122,7 @@ function Leaderboard({ onPlayer }: { onPlayer: (n: string) => void }) {
       <div className="podium" style={{ gridTemplateColumns: `repeat(${podium.length}, minmax(0, 260px))` }}>
         {podiumOrder.map(p => (
           <button key={p.name} className={`podium-spot place-${Math.min(p.place, 3)}`} onClick={() => onPlayer(p.name)}>
-            {p.place <= 3 && <Crown place={p.place as Place} size={p.place === 1 ? 40 : 32} />}
-            <Avatar name={p.name} size={p.place === 1 ? 76 : 60} />
+            <Avatar name={p.name} size={p.place === 1 ? 96 : 76} place={p.place} />
             <span className="podium-name">{p.name}</span>
             <span className="podium-wins">{p.wins}<small> {p.wins === 1 ? 'win' : 'wins'}</small></span>
             <span className="podium-step">{ordinal(p.place)}</span>

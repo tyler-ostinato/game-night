@@ -159,6 +159,7 @@ npm run db:setup -- --test     # create the (empty) tables
 | `client/src/Activity.tsx` | History's activity chart |
 | `client/src/Games.tsx` | Games tab, game page, editor, game picker |
 | `client/src/ui.tsx` | Shared bits: avatars, crowns, covers, empty states |
+| `client/src/sprite.ts`, `looks.ts`, `Character.tsx` | 8-bit characters: the pixel art, loading everyone's look, the builder |
 | `client/src/time.ts` | Date helpers for past game nights |
 | `client/src/api.ts` | API calls, login token, legacy switch |
 | `client/src/index.css` | All styling (light and dark) |

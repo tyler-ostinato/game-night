@@ -112,6 +112,36 @@ app.post('/api/players', requireAuth, async (req, res) => {
   res.status(201).json({ id });
 });
 
+// 8-bit characters. Must match the options in client/src/sprite.ts.
+const LOOK_OPTIONS = { skin: 6, hairColor: 10, shirt: 10, accent: 10 } as const;
+const HAIR_STYLES = ['short', 'spiky', 'long', 'bun', 'curly', 'bald'];
+const EXTRAS = ['none', 'glasses', 'shades', 'beard', 'mustache', 'cap', 'headband'];
+
+function cleanLook(v: unknown) {
+  const l = v as Record<string, unknown>;
+  if (!l || typeof l !== 'object') return null;
+  for (const [k, n] of Object.entries(LOOK_OPTIONS)) {
+    if (!Number.isInteger(l[k]) || (l[k] as number) < 0 || (l[k] as number) >= n) return null;
+  }
+  if (!HAIR_STYLES.includes(l.hair as string) || !EXTRAS.includes(l.extra as string)) return null;
+  const { skin, hair, hairColor, shirt, extra, accent } = l;
+  return { skin, hair, hairColor, shirt, extra, accent };
+}
+
+// Every customised character, by player name.
+app.get('/api/looks', async (_req, res) => {
+  const rows = await sql`SELECT name, look FROM players WHERE look IS NOT NULL`;
+  res.json(Object.fromEntries(rows.map(r => [r.name, JSON.parse(r.look)])));
+});
+
+app.put('/api/players/:name/look', requireAuth, async (req, res) => {
+  const look = cleanLook(req.body);
+  if (!look) return res.status(400).json({ error: 'That character has an option that doesn\'t exist.' });
+  const updated = await sql`UPDATE players SET look = ${JSON.stringify(look)} WHERE name = ${req.params.name} RETURNING id`;
+  if (!updated.length) return res.status(404).json({ error: 'Player not found.' });
+  res.json(look);
+});
+
 app.get('/api/players/:name', async (req, res) => {
   const profile = await playerProfile(req.params.name, withLegacy(req));
   if (!profile) return res.status(404).json({ error: 'Not found' });

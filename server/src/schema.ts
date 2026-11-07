@@ -72,4 +72,7 @@ CREATE TABLE IF NOT EXISTS login_attempts (
 );
 CREATE INDEX IF NOT EXISTS login_attempts_at ON login_attempts (at);
 
+-- Each player's 8-bit character (JSON, see client/src/sprite.ts). NULL = the default made from their name.
+ALTER TABLE players ADD COLUMN IF NOT EXISTS look TEXT;
+
 `;

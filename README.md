@@ -13,13 +13,20 @@ Tracks our game nights: who played, who won, scores, records, and stats for each
 | Tab | What's on it |
 |---|---|
 | **Game night** | Start, end or cancel tonight's session, and add each game as it finishes. Or add a past game night that wasn't logged |
-| **Leaderboard** | Podium with gold/silver/bronze crowns for the top 3, everyone else ranked below |
+| **Leaderboard** | Podium for the top 3 (wearing gold, silver and bronze crowns), everyone else ranked below |
 | **Players** | A card per player; click one for their profile. **+ Add player** adds someone before their first game |
 | **History** | Pick a time frame (last 30 days, 3 months, 12 months, all time, or custom dates) and group by days, weeks or months. The chart shows games played per period, stacked and coloured by game (hover a bar for its games; hover a legend entry to highlight one game). Below it, the game nights in that time frame, 10 at a time, more load as you scroll |
 | **Records** | Highest score ever posted in each game |
 | **Games** | A tile per game with its cover and champion; click one for its stats page |
 
 **Player profile:** wins, win rate, game nights, best win streak, the game they've won most, best win rate, most played game, first win, nemesis (who they finish behind most) and favourite opponent, plus a per-game breakdown, head-to-head record against everyone, and their full history.
+
+### 8-bit characters
+
+Every player is drawn as a little 8-bit character, everywhere their picture appears. Until someone designs theirs, they get one made from their name (the same name always gives the same character).
+
+- **Design one:** open the player's profile and press **Edit character**. Pick skin, hair style and colour, shirt, and an extra (glasses, shades, beard, mustache, cap or headband), or press **🎲 Surprise me**. The preview updates as you go and shows how they look with each crown. Saving needs the password.
+- **Crowns are automatic.** Whoever is 1st, 2nd or 3rd in the ranking you're looking at wears a gold, silver or bronze crown: the overall standings on the Leaderboard and Players tabs, and that game's standings on a game's page and tile. They follow the legacy switch, and need at least one win. A crown replaces a cap.
 
 **Game page:** champion, high score, average winning score, game nights, different players, average table size, a "who wins" ranking, expansions used, and every time it was played. Press **Edit** to rename it, set its cover, or manage expansions.
 

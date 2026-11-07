@@ -12,7 +12,7 @@ What's stored where. For the stats rules, see the [README](../README.md#how-the-
 | `games` | Game names and cover image URL |
 | `expansions` | Expansions, each belonging to one game |
 | `play_expansions` | Which expansions were used in a play |
-| `players` | Player names |
+| `players` | Player names, and each one's 8-bit character (`look`, JSON; empty = the default from their name) |
 | `auth_tokens` | Logins handed out after the password check (stored hashed, tagged with the password they were issued under) |
 | `login_attempts` | Recent wrong passwords, for brute-force protection |
 
