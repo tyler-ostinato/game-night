@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react'
 import { api, getToken } from './api'
 import { Login } from './Login'
-import { Avatar, Empty, GameCover, Trophy, plural, prettyDate } from './ui'
+import { Avatar, Empty, GameCover, PlaceTrophy, Trophy, plural, prettyDate, type Place } from './ui'
 
 export type Expansion = { id: number; name: string; plays: number }
 export type Game = {
@@ -158,7 +158,7 @@ function GameDetail({ id, canEdit, bgg, onLogin, onPlayer, onBack }: {
         <div className="list-card">
           {ranked.map(r => (
             <button key={r.name} className="rank-row" onClick={() => onPlayer(r.name)}>
-              <span className="rank-num">{r.place}</span>
+              <span className="rank-num">{r.wins > 0 && r.place <= 3 ? <PlaceTrophy place={r.place as Place} /> : r.place}</span>
               <Avatar name={r.name} size={40} place={r.wins > 0 ? r.place : undefined} />
               <span className="rank-name">{r.name}<small>played {r.played} · {pct(r.winRate)} win rate*{r.bestScore != null && ` · best ${r.bestScore.toLocaleString()}`}</small></span>
               <span className="rank-bar"><span style={{ width: `${(r.wins / maxWins) * 100}%` }} /></span>

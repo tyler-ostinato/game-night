@@ -63,6 +63,15 @@ export function Crown({ place, size = 28 }: { place: Place; size?: number }) {
   )
 }
 
+// A gold, silver or bronze trophy for 1st-3rd in a ranked list (the characters wear the crowns).
+export function PlaceTrophy({ place, size = 22 }: { place: Place; size?: number }) {
+  return (
+    <span className={`place-trophy place-trophy-${place}`} role="img" aria-label={`${ordinal(place)} place`} title={`${ordinal(place)} place`}>
+      <Trophy size={size} />
+    </span>
+  )
+}
+
 export function Trophy({ size = 16 }: { size?: number }) {
   return (
     <svg className="trophy" width={size} height={size} viewBox="0 0 24 24" aria-hidden="true">

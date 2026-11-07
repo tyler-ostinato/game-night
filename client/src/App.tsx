@@ -125,7 +125,7 @@ function Leaderboard({ onPlayer }: { onPlayer: (n: string) => void }) {
             <Avatar name={p.name} size={p.place === 1 ? 96 : 76} place={p.place} />
             <span className="podium-name">{p.name}</span>
             <span className="podium-wins">{p.wins}<small> {p.wins === 1 ? 'win' : 'wins'}</small></span>
-            <span className="podium-step">{ordinal(p.place)}</span>
+            <span className="podium-step">{p.place <= 3 && <Trophy size={p.place === 1 ? 26 : 20} />}{ordinal(p.place)}</span>
           </button>
         ))}
       </div>

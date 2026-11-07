@@ -207,6 +207,12 @@ textarea { resize: vertical; }
 .rank-row:last-child { border-bottom: 0; }
 .rank-row:hover { background: var(--accent-soft); }
 .rank-num { color: var(--muted); font-weight: 700; text-align: center; }
+.place-trophy { display: inline-grid; place-items: center; line-height: 0; filter: drop-shadow(0 1px 2px rgba(0, 0, 0, .25)); }
+.place-trophy-1 { color: var(--gold); }
+.place-trophy-2 { color: var(--silver); }
+.place-trophy-3 { color: var(--bronze); }
+.podium-step { display: flex; align-items: center; justify-content: center; gap: 6px; }
+.podium-step .trophy { color: #fff; filter: drop-shadow(0 1px 2px rgba(0, 0, 0, .3)); }
 .rank-name { display: grid; font-weight: 600; }
 .rank-name small { font-size: .8rem; }
 .rank-wins { font-weight: 800; font-size: 1.15rem; text-align: right; }
