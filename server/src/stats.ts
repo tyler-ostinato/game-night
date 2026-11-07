@@ -23,6 +23,14 @@ async function entries(includeLegacy: boolean): Promise<Entry[]> {
 
 const rate = (wins: number, played: number) => (played ? wins / played : null);
 
+// The game a player does best at: highest win rate over at least 2 full games, ties going to more games.
+// A 0% rate isn't "best" at anything, so it needs at least one win.
+export function bestWinRateGame<T extends { winRate: number | null; completePlayed: number }>(games: T[]): T | null {
+  return games
+    .filter(g => g.completePlayed >= 2 && g.winRate != null && g.winRate > 0)
+    .reduce<T | null>((best, g) => !best || g.winRate! > best.winRate! || (g.winRate === best.winRate && g.completePlayed > best.completePlayed) ? g : best, null);
+}
+
 export function summarize(mine: Entry[]) {
   const complete = mine.filter(isComplete);
   const wins = mine.filter(e => e.placement === 1).length;
@@ -70,7 +78,7 @@ export async function playerProfile(name: string, includeLegacy = true) {
   const pick = <T,>(xs: T[], score: (x: T) => number) => xs.reduce<T | null>((best, x) => (!best || score(x) > score(best) ? x : best), null);
   const mostWins = pick(byGame.filter(g => g.wins > 0), g => g.wins);
   const mostPlayed = pick(byGame, g => g.played);
-  const bestRate = pick(byGame.filter(g => g.completePlayed >= 2 && g.winRate != null), g => g.winRate! * 1000 + g.completePlayed);
+  const bestRate = bestWinRateGame(byGame);
 
   // Streaks over complete plays, oldest first
   let longest = 0, run = 0;

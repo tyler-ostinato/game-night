@@ -120,7 +120,7 @@ export function PlayerProfile({ name, testMode, onPlayer, onBack }: { name: stri
         <Stat label="Best win streak" value={p.longestStreak} sub="in a row*" />
         <Stat label="Most wins at" value={p.mostWins?.game ?? '—'} sub={p.mostWins && plural(p.mostWins.wins, 'win')} />
         <Stat label="Best win rate at" value={p.bestWinRate?.game ?? '—'}
-          sub={p.bestWinRate ? `${pct(p.bestWinRate.winRate)} over ${p.bestWinRate.played} games` : 'needs 2+ full games'} />
+          sub={p.bestWinRate ? `${pct(p.bestWinRate.winRate)} over ${p.bestWinRate.played} games` : 'needs a win in 2+ full games'} />
         <Stat label="Most played" value={p.mostPlayed?.game ?? '—'} sub={p.mostPlayed && plural(p.mostPlayed.played, 'game')} />
         <Stat label="First win" value={p.firstWin?.game ?? '—'} sub={p.firstWin && prettyDate(p.firstWin.date)} />
         <Stat label="Nemesis" value={p.nemesis ? link(p.nemesis.name) : '—'} sub={p.nemesis && `finished behind them ${p.nemesis.lostTo}×`} />

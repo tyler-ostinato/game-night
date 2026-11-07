@@ -1,7 +1,7 @@
 import { describe, expect, it, vi } from 'vitest';
 
 vi.mock('./db.js', () => ({ sql: () => { throw new Error('no database in unit tests'); } }));
-const { summarize, standingsFor } = await import('./stats.js');
+const { summarize, standingsFor, bestWinRateGame } = await import('./stats.js');
 type Entry = import('./stats.js').Entry;
 
 let nextId = 1;
@@ -29,6 +29,22 @@ describe('summarize', () => {
 
   it('counts distinct nights', () => {
     expect(summarize([entry('A', 1), entry('A', 2), entry('A', 1, { session_id: 2 })]).nights).toBe(2);
+  });
+});
+
+describe('bestWinRateGame', () => {
+  const g = (game: string, winRate: number | null, completePlayed: number) => ({ game, winRate, completePlayed });
+
+  it('ignores games with no wins', () => {
+    expect(bestWinRateGame([g('Doomlings', 0, 5), g('Dune', null, 0)])).toBeNull();
+  });
+
+  it('needs at least 2 full games', () => {
+    expect(bestWinRateGame([g('Catan', 1, 1), g('Clue', 0.5, 4)])?.game).toBe('Clue');
+  });
+
+  it('breaks ties by more full games', () => {
+    expect(bestWinRateGame([g('A', 0.5, 2), g('B', 0.5, 6)])?.game).toBe('B');
   });
 });
 
