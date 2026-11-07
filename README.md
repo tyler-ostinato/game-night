@@ -26,9 +26,9 @@ Tracks our game nights: who played, who won, scores, records, and stats for each
 Players can be drawn as a little 8-bit character, everywhere their picture appears. Everyone starts with their **initial** in a coloured circle; switching to a character is opt-in. The editor starts them from a character made from their name (the same name always gives the same one).
 
 - **Design one:** open the player's profile and press **Edit character**. Pick a body (neutral, male or female), skin, hair style and colour, facial hair (stubble, mustache, beard), eyewear (glasses, shades), headwear (cap, headband) and shirt, or press **🎲 Surprise me**. Facial hair, eyewear and headwear can be combined. The preview updates as you go and shows how they look with each crown. Saving needs the password.
-- **Initials** (the default, or **Just my initial** in the editor) still get a crown when they place.
+- **Crowns are a character perk.** Players shown as initials (the default, or **Just my initial** in the editor) don't get one; their place is still marked by the trophy in the ranking.
 - Defaults are always the neutral body: the site never guesses from a name.
-- **Crowns are automatic.** Whoever is 1st, 2nd or 3rd in the ranking you're looking at wears a gold, silver or bronze crown: the overall standings on the Leaderboard and Players tabs, and that game's standings on a game's page and tile. They follow the legacy switch, and need at least one win. A crown replaces a cap.
+- **Crowns are automatic.** A character who is 1st, 2nd or 3rd in the ranking you're looking at wears a gold, silver or bronze crown: the overall standings on the Leaderboard and Players tabs, and that game's standings on a game's page and tile. They follow the legacy switch, and need at least one win. A crown replaces a cap.
 
 **Game page:** champion, high score, average winning score, game nights, different players, average table size, a "who wins" ranking, expansions used, and every time it was played. Press **Edit** to rename it, set its cover, or manage expansions.
 

@@ -99,7 +99,7 @@ export function CharacterEditor({ name, testMode, onDone }: { name: string; test
             <button type="button" className={letter ? '' : 'on'} aria-pressed={!letter} onClick={() => set('avatar', 'character')}>8-bit character</button>
             <button type="button" className={letter ? 'on' : ''} aria-pressed={letter} onClick={() => set('avatar', 'letter')}>Just my initial</button>
           </div>
-          {letter && <p className="muted">No character: a coloured circle with your initial. Crowns still show when you place.</p>}
+          {letter && <p className="muted">No character: a coloured circle with your initial. Places in rankings are still marked with trophies; the crown is for characters.</p>}
         </fieldset>
         {!letter && <>
           {choices('Body', 'body', BODIES)}

@@ -148,8 +148,6 @@ textarea { resize: vertical; }
   overflow: hidden;
 }
 .sprite { display: block; image-rendering: pixelated; }
-.avatar-letter-wrap { position: relative; display: inline-block; flex: none; }
-.avatar-crown { position: absolute; left: 50%; top: 0; transform: translate(-50%, -62%); line-height: 0; pointer-events: none; }
 .avatar .sprite { width: 100%; height: 100%; }
 
 /* Character builder */
