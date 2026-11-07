@@ -24,8 +24,6 @@ Open http://localhost:5173. Both halves reload automatically when you edit code,
 | `npm run dev:test` | Testing mode on a separate database (see [Testing mode](#testing-mode)) |
 | `just test-up` / `just test-down` | Start / stop testing mode in the background (see [Testing mode](#testing-mode)) |
 | `npm run db:setup` | Create the tables (add `-- --test` for the test database) |
-| `npm run import` | Reload the legacy CSV (keeps game nights recorded on the site) |
-| `npm run migrate-sqlite` | One-off: copy `data/gamenight.db` and `data/images/` into Postgres and Blob |
 | `npm run setup` | Install dependencies for the root, server and client, and turn on the pre-commit check |
 | `npm run check` / `just check` | Typecheck, lint and unit tests (what the pre-commit hook and CI run) |
 | `npm test` | Unit tests only |
@@ -36,11 +34,10 @@ Open http://localhost:5173. Both halves reload automatically when you edit code,
 |---|---|
 | `client/` | The website: React + Vite (TypeScript) |
 | `server/src/` | The API: Express on Postgres (TypeScript) |
-| `server/scripts/` | Command-line tools: create tables, import the legacy CSV |
+| `server/scripts/` | Command-line tools: create the tables |
 | `api/` | The file Vercel runs the API from, and the [API route list](../api/README.md) |
 | `docs/` | These docs |
 | `.githooks/`, `.github/` | Pre-commit check and GitHub Actions |
-| `data/` (not in git) | The legacy CSV, the old SQLite database and covers; on Tyler's machine |
 
 ## Hosting and storage
 
@@ -68,7 +65,7 @@ We push straight to `main`; there are no pull requests or approvals. That makes 
 - **Conventions** for commit messages, database changes and what to check before pushing are in [`CLAUDE.md`](../CLAUDE.md). Claude Code follows them automatically, and they're worth a read for people too.
 - **Push to `main`:** Vercel builds and deploys it to the live site within a minute.
 - **Push another branch or open a pull request:** Vercel deploys it to its own preview URL. Previews use the **real** database, so don't try destructive things there; use [testing mode](#testing-mode).
-- **Backups:** Neon keeps restore points (Neon console → **Restore**). The old SQLite database is still in `data/` on Tyler's machine as a frozen backup from before the move.
+- **Backups:** Neon keeps restore points (Neon console → **Restore**). The database is the only copy of the data, so these are the backup.
 
 
 ## Testing mode
@@ -146,9 +143,7 @@ npm run db:setup -- --test     # create the (empty) tables
 | `server/src/images.ts` | Cover upload and download to Blob; BoardGameGeek search |
 | `server/src/auth.ts` | Password check, login tokens, rate limiting |
 | `server/src/db.ts`, `schema.sql` | Database connection and tables |
-| `server/scripts/import.ts` | CSV import (`npm run import`) |
 | `server/scripts/setup-db.ts` | Creates the tables (`npm run db:setup`) |
-| `server/scripts/migrate-sqlite.ts` | One-off SQLite → Postgres copy (already done) |
 | `client/src/App.tsx` | Layout, Game night, Leaderboard, History, Records |
 | `client/src/Players.tsx` | Players tab and player profile |
 | `client/src/Activity.tsx` | History's activity chart |

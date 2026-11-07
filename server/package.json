@@ -5,11 +5,9 @@
   "main": "index.js",
   "scripts": {
     "dev": "tsx watch src/index.ts",
-    "import": "tsx scripts/import.ts",
     "typecheck": "tsc",
     "dev:test": "PORT=3002 GAMENIGHT_TEST=1 tsx watch src/index.ts",
-    "db:setup": "tsx scripts/setup-db.ts",
-    "migrate-sqlite": "tsx scripts/migrate-sqlite.ts"
+    "db:setup": "tsx scripts/setup-db.ts"
   },
   "keywords": [],
   "author": "",
@@ -22,11 +20,9 @@
     "postgres": "^4.0.0"
   },
   "devDependencies": {
-    "@types/better-sqlite3": "^9.6.0",
     "@types/cors": "^2.8.19",
     "@types/express": "^5.0.6",
     "@types/node": "^26.6.5",
-    "better-sqlite3": "^13.0.3",
     "tsx": "^4.23.15",
     "typescript": "^7.0.2"
   }

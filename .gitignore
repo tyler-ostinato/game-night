@@ -5,6 +5,4 @@ dist
 .DS_Store
 .vercel
 
-# Real game-night data stays local
-data/
 .test-mode/

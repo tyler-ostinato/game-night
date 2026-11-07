@@ -17,36 +17,14 @@ What's stored where. For the stats rules, see the [README](../README.md#how-the-
 
 The tables are created, and new columns added, automatically when the server starts (`server/src/schema.sql`, `server/src/db.ts`).
 
-## The legacy CSV (`data/results.csv`)
+## Where the legacy data came from
 
-One row per game played, with these columns:
+Games from before the site existed were copied from a handwritten notebook. They're in the database like everything else, flagged `legacy = 1`. The notebook mostly recorded only the winner, which is why the stats treat legacy games differently (see the [README](../README.md#how-the-stats-work)).
 
-| Column | Notes |
-|---|---|
-| `session_id` | The game night. Games on the same night share it. Only games noted as the same night in the notebook were grouped. |
-| `game_id` | One play of a game |
-| `date` | `MM/DD/YY`, the night the session started |
-| `time` | When the game ended, as written in the notebook (e.g. `2:40am`) |
-| `game` | Base game name (e.g. `Catan`) |
-| `expansion` | Expansions used, separated by `\|` (e.g. `Traders\|Barbarians`) |
-| `player` | The winner |
-| `score`, `placement` | The winner's score and placement, if known |
-| `notes` | Separated by `\|` |
-| `attendance` | Everyone who played, separated by `\|`, when known |
-| `legacy` | Always `1` |
-
-Cleanup already applied to the notebook data:
-- Typos and swapped columns fixed, and rows with a blank placement (the listed player was the winner) set to 1st.
+Cleanup applied when they were imported:
+- Typos and swapped columns were fixed, and rows with a blank placement (the listed player was the winner) were set to 1st.
+- Only games noted as the same night in the notebook were grouped into one game night.
+- Game times are kept as the notebook wrote them (e.g. `2:40am`), not as timestamps.
 - Three out-of-order dates were replaced with the midpoint between their neighbours. Each has `Date estimated (originally …)` in its notes.
-- The untouched original is kept as `data/results.original.csv`.
 
-## Files in `data/`
-
-| File | What it is |
-|---|---|
-| `gamenight.db` | The old SQLite database (before the move to Postgres) |
-| `images/` | The old covers (now copied to Blob) |
-| `results.csv` | Cleaned legacy results (the import source) |
-| `results.original.csv` | The CSV before cleanup |
-| `gamenight.backup-before-cleanup.db` | Backup from before stray test data was removed; safe to delete |
-
+The original CSV, the import script and the old SQLite database were retired in November 2026. The database is now the only copy of the data, and Neon's restore points are the backup (see [docs/development.md](development.md#deploying)). The scripts are still in git history if they're ever needed.

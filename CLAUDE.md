@@ -5,7 +5,7 @@ Game Night tracker: Express API (`server/`) + React/Vite site (`client/`) on Ver
 Docs are the source of truth; read the relevant one before changing behaviour, and update it in the same commit:
 - `README.md`: what the site does and how to use it (features, flows, stats rules)
 - `docs/development.md`: setup, commands, testing mode, hosting, deploying, settings, code map
-- `docs/data.md`: tables, legacy CSV, `data/` folder
+- `docs/data.md`: tables, where the legacy data came from
 - `api/README.md`: every API route (add new routes here)
 
 ## First session on a new machine
@@ -30,7 +30,8 @@ Before every commit:
 - **Never write to the production database** (`DATABASE_URL`). Use testing mode (`TEST_DATABASE_URL`) for anything that creates, edits or deletes data. Only touch production data when the user explicitly asks for that specific change, and say exactly what will change first.
 - **Schema changes are additive only.** `server/src/schema.sql` runs on every server start against whatever database it's connected to, including production. Add tables, or nullable columns with `ADD COLUMN IF NOT EXISTS`. Never rename or drop a column/table in the same deploy that stops using it.
 - **History can't be lost.** Played games/expansions can't be deleted (enforced server-side); keep it that way.
-- Don't commit `.env*`, `data/`, or `.test-mode/`.
+- Don't commit `.env*` or `.test-mode/`.
+- The database is the only copy of the data (no CSV or local backup); Neon restore points are the backup.
 - New write endpoints need `requireAuth` (see `server/src/auth.ts`).
 
 ## Commit messages
@@ -58,7 +59,7 @@ One logical change per commit. Who made a change is recorded by git (author) and
 | `just check` / `npm run check` | Everything CI runs |
 | `npm test` | Unit tests only (Vitest) |
 | `npm run dev` | Real database. Only for read-only or visual work |
-| `npm run db:setup -- --test`, `npm run import` | Command-line tools in `server/scripts/` |
+| `npm run db:setup -- --test` | Create the tables (script in `server/scripts/`) |
 
 ## Tests
 

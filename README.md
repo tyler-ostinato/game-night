@@ -85,7 +85,7 @@ The current covers came from BoardGameGeek. **Clue** uses BGG's *Clue (1949)* en
 
 ## How the stats work
 
-**Legacy data:** everything imported from `data/results.csv` is flagged `legacy`. It came from a handwritten notebook and mostly records only the winner. Everything entered on the site is non-legacy.
+**Legacy data:** games copied from before the site existed are flagged `legacy`. It came from a handwritten notebook and mostly records only the winner. Everything entered on the site is non-legacy.
 
 **Full games:** a game where more than one player was recorded.
 - **Counted for all games:** wins and games played.
@@ -117,6 +117,6 @@ just test-up           # try things on a test database: http://localhost:5174
 | Read this | For |
 |---|---|
 | [docs/development.md](docs/development.md) | Setup, commands, testing mode, hosting, deploying, settings, code map |
-| [docs/data.md](docs/data.md) | Database tables, the legacy CSV, the `data/` folder |
+| [docs/data.md](docs/data.md) | Database tables, where the legacy data came from |
 | [api/README.md](api/README.md) | Every API route |
 | [CLAUDE.md](CLAUDE.md) | House rules: before-commit checklist, commit messages, database changes |

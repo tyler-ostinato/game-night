@@ -6,8 +6,6 @@
     "dev": "concurrently -n api,site -c blue,green \"npm --prefix server run dev\" \"npm --prefix client run dev\"",
     "dev:test": "concurrently -n api,site -c yellow,magenta \"npm --prefix server run dev:test\" \"npm --prefix client run dev:test\"",
     "db:setup": "npm --prefix server run db:setup --",
-    "import": "npm --prefix server run import",
-    "migrate-sqlite": "npm --prefix server run migrate-sqlite",
     "test": "vitest run",
     "check": "cd server && npx tsc && cd ../client && npx tsc -b && npx oxlint && cd .. && vitest run"
   },
