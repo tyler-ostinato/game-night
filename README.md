@@ -29,10 +29,13 @@ Open http://localhost:5173. Both halves reload automatically when you edit code,
 |---|---|
 | `npm run dev` | Normal mode: real data, API on :3001, site on :5173 |
 | `npm run dev:test` | Testing mode on a separate database (see [Testing mode](#testing-mode)) |
+| `just test-up` / `just test-down` | Start / stop testing mode in the background (see [Testing mode](#testing-mode)) |
 | `npm run db:setup` | Create the tables (add `-- --test` for the test database) |
 | `npm run import` | Reload the legacy CSV (keeps game nights recorded on the site) |
 | `npm run migrate-sqlite` | One-off: copy `data/gamenight.db` and `data/images/` into Postgres and Blob |
-| `npm run setup` | Install dependencies for the root, server and client |
+| `npm run setup` | Install dependencies for the root, server and client, and turn on the pre-commit check |
+| `npm run check` / `just check` | Typecheck, lint and unit tests (what the pre-commit hook and CI run) |
+| `npm test` | Unit tests only |
 
 ## Hosting and storage
 
@@ -51,6 +54,15 @@ Open http://localhost:5173. Both halves reload automatically when you edit code,
 
 ### Deploying
 
+We push straight to `main`; there are no pull requests or approvals. That makes the checks below the safety net:
+
+- **Pre-commit check:** every `git commit` first runs `npm run check` (typechecks for the server and client, lint, and unit tests; a few seconds). If it fails, the commit is stopped; fix the problem and commit again. It's turned on by `npm run setup` (it sets `git config core.hooksPath .githooks`). Skip it only in an emergency with `git commit --no-verify`.
+- **GitHub Actions** (`.github/workflows/ci.yml`) runs the same check on every push. It doesn't block Vercel, so a red ❌ on GitHub means the live site may already have the problem: fix it straight away.
+- **Unit tests** are small and only cover pure logic (stats rules, the past-night time rule): `*.test.ts` files next to the code, run with Vitest. No database is needed.
+- **Writes are tested in [testing mode](#testing-mode)** before pushing.
+- **Conventions** for commit messages, database changes and what to check before pushing are in `CLAUDE.md`. Claude Code follows them automatically, and they're worth a read for people too.
+
+
 - **Push to `main`:** Vercel builds and deploys it to the live site within a minute.
 - **Push another branch or open a pull request:** Vercel deploys it to its own preview URL. Previews use the **real** database, so don't try destructive things there; use [testing mode](#testing-mode).
 - **Backups:** Neon keeps restore points (Neon console → **Restore**). The old SQLite database is still in `data/` on Tyler's machine as a frozen backup from before the move.
@@ -59,7 +71,7 @@ Open http://localhost:5173. Both halves reload automatically when you edit code,
 
 | Tab | What's on it |
 |---|---|
-| **Game night** | Start, end or cancel tonight's session, and add each game as it finishes |
+| **Game night** | Start, end or cancel tonight's session, and add each game as it finishes. Or add a past game night that wasn't logged |
 | **Leaderboard** | Podium with gold/silver/bronze crowns for the top 3, everyone else ranked below |
 | **Players** | A card per player; click one for their profile. **+ Add player** adds someone before their first game |
 | **History** | Pick a time frame (last 30 days, 3 months, 12 months, all time, or custom dates) and group by days, weeks or months. The chart shows games played per period, stacked and coloured by game (hover a bar for its games; hover a legend entry to highlight one game). Below it, the game nights in that time frame, 10 at a time, more load as you scroll |
@@ -90,6 +102,17 @@ Clicking a player's name anywhere opens their profile. Viewing is public; changi
 
 A session is dated by the night it **started**, so a game finishing at 1am still counts for that evening.
 
+### Adding a past game night
+
+For a night that wasn't logged live. On **Game night** (when no session is running), press **+ Add a past game night**:
+
+1. Pick the **date** the night started. It defaults to yesterday.
+2. Add each game **in the order it was played**, using the same form as a live game, and press **Add game to list**. Each game has an optional **Finished at** time; leave it blank if you don't remember, and it shows as "time unknown". A time before 6am counts as the early hours after that date.
+3. Fix the order with ↑ ↓, or remove a game with ✕.
+4. Press **Save game night** at the bottom. Nothing is saved until then; the unsaved list is kept on your device, so switching tabs or refreshing doesn't lose it (the button reads **Continue unsaved past game night**). **Discard** throws it away.
+
+Past nights count in every stat just like live ones. They have no start or end time, and games without a time sort by the order they were entered.
+
 ## Games and covers
 
 - **Add a game:** the **+ Add game** button on the Games tab, or **+ New game** in the picker.
@@ -115,7 +138,7 @@ What happens behind the scenes:
 - Covers changed in **testing mode** go to `test-covers/` and only change the test database.
 - To see or clean up files, use Vercel → **Storage** → the Blob store → **Browser**. Deleting a file there doesn't clear the game's `image` column, so it shows a broken image until you set a new cover. Use the site's **Remove** button instead.
 
-The current covers came from BoardGameGeek. **Cluedo** uses BGG's *Clue (1949)* entry and **Dune** uses *Dune: Imperium (2020)*.
+The current covers came from BoardGameGeek. **Clue** uses BGG's *Clue (1949)* entry and **Dune** uses *Dune: Imperium (2020)*.
 ## How the stats work
 
 **Legacy data:** everything imported from `data/results.csv` is flagged `legacy`. It came from a handwritten notebook and mostly records only the winner. Everything entered on the site is non-legacy.
@@ -191,8 +214,22 @@ Cleanup already applied to the notebook data:
 Testing mode is a private copy of the site for trying things out: logging fake game nights, testing a code change that writes data, or checking a cover upload. It touches a separate test database, never the real one.
 
 ```bash
-npm run dev:test    # test API on :3002, test site on http://localhost:5174
+just test-up        # start in the background: test site on http://localhost:5174, test API on :3002
+just test-down      # stop it
 ```
+
+Or run `npm run dev:test` to keep it in the foreground in a terminal (Ctrl+C stops it).
+
+| Command | What it does |
+|---|---|
+| `just test-up` | Starts the test API and site in the background and waits until they're ready. Does nothing if already running |
+| `just test-down` | Stops both, including a copy started by hand with `npm run dev:test` |
+| `just test-restart` | Stop, then start |
+| `just test-status` | Says whether it's running |
+| `just test-logs` | Follows the output (Ctrl+C stops following, not the servers) |
+| `just` | Lists all commands |
+
+`just` is a small command runner ([install](https://github.com/casey/just#installation), e.g. `brew install just` or `cargo install just`). The commands live in `justfile`; the background process's id and log are kept in `.test-mode/` (not in git). On macOS, `test-up` needs `setsid` (`brew install util-linux`), or use `npm run dev:test` instead.
 
 **When to use it**
 
@@ -210,7 +247,7 @@ npm run dev:test    # test API on :3002, test site on http://localhost:5174
 2. Create a **branch** (for example `dev-yourname`). A branch is a full copy of the real data at that moment, and changes to it never affect the real data.
 3. Copy the branch's connection string and add it in Vercel → **Settings → Environment Variables** as `TEST_DATABASE_URL`, ticked for **Development only**. Then run `npx vercel env pull`.
    - It goes in Vercel rather than straight into `.env.local` because `vercel env pull` **overwrites** `.env.local` and would wipe anything you added by hand. If you share one test branch, one variable is enough. If you each want your own, add it to your `.env.local` by hand and add it back after every pull.
-4. Run `npm run dev:test`.
+4. Run `just test-up` (or `npm run dev:test`).
 
 **Starting over:** in Neon, open your branch and choose **Reset from parent**. It becomes a fresh copy of today's real data.
 

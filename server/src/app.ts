@@ -234,27 +234,57 @@ app.delete('/api/expansions/:id', requireAuth, async (req, res) => {
 
 // New (non-legacy) play, added to the running session. Requires every participant and a placement for each.
 app.post('/api/plays', requireAuth, async (req, res) => {
-  const { gameId, expansionIds = [], notes, players } = req.body as {
-    gameId: number; expansionIds?: number[]; notes?: string;
-    players: { name: string; score?: number | null; placement: number }[];
-  };
+  const play = req.body as NewPlay;
   const session = await activeSession();
   if (!session) return res.status(409).json({ error: 'Start a game night session first.' });
-  if (!(await sql`SELECT 1 FROM games WHERE id = ${gameId}`).length) return res.status(400).json({ error: 'Pick a game.' });
-  const valid = await sql`SELECT id FROM expansions WHERE game_id = ${gameId}`;
-  if (expansionIds.some(e => !valid.some(v => v.id === e))) return res.status(400).json({ error: 'Expansion doesn\'t belong to that game.' });
-  if (!players?.length || players.some(p => !p.name?.trim() || !(p.placement >= 1))) {
-    return res.status(400).json({ error: 'Need a name + placement for every player.' });
+  const err = await playError(play);
+  if (err) return res.status(400).json({ error: err });
+  // end time = when it was saved
+  const id = await sql.begin(tx => insertPlay(tx as unknown as typeof sql, session.id, play, new Date().toISOString()));
+  res.status(201).json({ id });
+});
+
+type NewPlay = {
+  gameId: number; expansionIds?: number[]; notes?: string; endTime?: string | null;
+  players: { name: string; score?: number | null; placement: number }[];
+};
+
+// Checks one play's game, expansions and players. Returns an error message, or null if it's fine.
+async function playError(p: NewPlay): Promise<string | null> {
+  if (!(await sql`SELECT 1 FROM games WHERE id = ${p.gameId}`).length) return 'Pick a game.';
+  const valid = await sql`SELECT id FROM expansions WHERE game_id = ${p.gameId}`;
+  if ((p.expansionIds ?? []).some(e => !valid.some(v => v.id === e))) return 'Expansion doesn\'t belong to that game.';
+  if (!p.players?.length || p.players.some(x => !x.name?.trim() || !(x.placement >= 1))) return 'Need a name + placement for every player.';
+  return null;
+}
+
+async function insertPlay(tx: typeof sql, sessionId: number, p: NewPlay, endTime: string | null) {
+  const [{ id: playId }] = await tx`INSERT INTO plays (session_id, game_id, end_time, notes)
+    VALUES (${sessionId}, ${p.gameId}, ${endTime}, ${p.notes || null}) RETURNING id`;
+  for (const e of new Set(p.expansionIds ?? [])) await tx`INSERT INTO play_expansions (play_id, expansion_id) VALUES (${playId}, ${e})`;
+  for (const x of p.players) {
+    await tx`INSERT INTO play_players (play_id, player_id, score, placement)
+      VALUES (${playId}, ${await idFor('players', x.name.trim(), tx)}, ${x.score ?? null}, ${x.placement})`;
+  }
+  return playId as number;
+}
+
+// A missed game night entered afterwards. Date is required; start/end times are unknown so stay empty.
+// Plays are saved in the order given (that's their order on the night); each end time is optional.
+app.post('/api/sessions/past', requireAuth, async (req, res) => {
+  const { date, plays } = req.body as { date: string; plays: NewPlay[] };
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(date ?? '') || isNaN(Date.parse(date))) return res.status(400).json({ error: 'Pick a date.' });
+  if (date > localDate(new Date())) return res.status(400).json({ error: 'That date is in the future.' });
+  if (!plays?.length) return res.status(400).json({ error: 'Add at least one game.' });
+  for (const [i, p] of plays.entries()) {
+    const err = await playError(p);
+    if (err) return res.status(400).json({ error: `Game ${i + 1}: ${err}` });
+    if (p.endTime && isNaN(Date.parse(p.endTime))) return res.status(400).json({ error: `Game ${i + 1}: bad time.` });
   }
   const id = await sql.begin(async tx => {
-    const [{ id: playId }] = await tx`INSERT INTO plays (session_id, game_id, end_time, notes)
-      VALUES (${session.id}, ${gameId}, ${new Date().toISOString()}, ${notes || null}) RETURNING id`; // end time = when it was saved
-    for (const e of new Set(expansionIds)) await tx`INSERT INTO play_expansions (play_id, expansion_id) VALUES (${playId}, ${e})`;
-    for (const p of players) {
-      await tx`INSERT INTO play_players (play_id, player_id, score, placement)
-        VALUES (${playId}, ${await idFor('players', p.name.trim(), tx)}, ${p.score ?? null}, ${p.placement})`;
-    }
-    return playId as number;
+    const [{ id: sessionId }] = await tx`INSERT INTO sessions (date) VALUES (${date}) RETURNING id`;
+    for (const p of plays) await insertPlay(tx as unknown as typeof sql, sessionId, p, p.endTime ? new Date(p.endTime).toISOString() : null);
+    return sessionId as number;
   });
   res.status(201).json({ id });
 });

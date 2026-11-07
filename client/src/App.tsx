@@ -5,6 +5,7 @@ import { ActivityChart, RangeFilter, presetRange, type Range } from './Activity'
 import { PlayersPage, PlayerProfile } from './Players'
 import { Avatar, Crown, Empty, Trophy, ordinal, plural, prettyDate, type Place } from './ui'
 import { GamesPage, GamePicker, type Picked } from './Games'
+import { endTimeFor, isoDate } from './time'
 
 type Play = {
   id: number; session_id: number; date: string; end_time: string | null; game: string
@@ -239,10 +240,17 @@ function Records({ onPlayer }: { onPlayer: (n: string) => void }) {
 
 type Row = { name: string; score: string; placement: string }
 
-function AddPlay({ onSaved }: { onSaved: () => void }) {
+type PlayInput = {
+  gameId: number | null; expansionIds: number[]; notes: string; time: string
+  players: { name: string; placement: number; score: number | null }[]
+}
+
+// Saves a play to the running session, or with onCollect hands it to the parent instead (past game nights).
+function AddPlay({ onSaved, onCollect }: { onSaved?: () => void; onCollect?: (p: PlayInput) => void }) {
   const options = useApi<{ players: string[] }>('/options')
   const [picked, setPicked] = useState<Picked>({ gameId: null, expansionIds: [] })
   const [notes, setNotes] = useState('')
+  const [time, setTime] = useState('')
   const [rows, setRows] = useState<Row[]>([{ name: '', score: '', placement: '1' }, { name: '', score: '', placement: '2' }])
   const [error, setError] = useState('')
 
@@ -262,17 +270,20 @@ function AddPlay({ onSaved }: { onSaved: () => void }) {
   async function submit(e: React.FormEvent) {
     e.preventDefault()
     setError('')
+    const play: PlayInput = {
+      ...picked, notes, time,
+      players: rows.filter(r => r.name.trim()).map(r => ({
+        name: r.name, placement: Number(r.placement), score: r.score === '' ? null : Number(r.score),
+      })),
+    }
+    if (onCollect) {
+      if (!play.gameId) return setError('Pick a game.')
+      if (!play.players.length || play.players.some(p => !(p.placement >= 1))) return setError('Need a name + placement for every player.')
+      return onCollect(play)
+    }
     try {
-      await api('/plays', {
-        method: 'POST',
-        body: JSON.stringify({
-          ...picked, notes,
-          players: rows.filter(r => r.name.trim()).map(r => ({
-            name: r.name, placement: Number(r.placement), score: r.score === '' ? null : Number(r.score),
-          })),
-        }),
-      })
-      onSaved()
+      await api('/plays', { method: 'POST', body: JSON.stringify(play) })
+      onSaved?.()
     } catch (err) {
       setError((err as Error).message)
     }
@@ -304,9 +315,107 @@ function AddPlay({ onSaved }: { onSaved: () => void }) {
         <button type="button" className="ghost" onClick={() => setRows(rs => [...rs, { name: '', score: '', placement: String(rs.length + 1) }])}>+ Add player</button>
       </fieldset>
       <label>Notes<textarea rows={2} placeholder="Anything memorable?" value={notes} onChange={e => setNotes(e.target.value)} /></label>
+      {onCollect && (
+        <label>Finished at <span className="muted">(optional, leave blank if you don't remember)</span>
+          <input type="time" value={time} onChange={e => setTime(e.target.value)} />
+        </label>
+      )}
       {error && <p className="error">{error}</p>}
-      <button type="submit" className="primary wide">Save game</button>
+      <button type="submit" className={onCollect ? 'wide' : 'primary wide'}>{onCollect ? 'Add game to list' : 'Save game'}</button>
     </form>
+  )
+}
+
+const DRAFT_KEY = 'gamenight.pastNightDraft'
+function loadDraft(): { date: string; plays: PlayInput[] } | null {
+  try { return JSON.parse(localStorage.getItem(DRAFT_KEY) ?? 'null') } catch { return null }
+}
+const hasPastNightDraft = () => !!loadDraft()?.plays?.length
+const clearDraft = () => { try { localStorage.removeItem(DRAFT_KEY) } catch { /* ignore */ } }
+
+function PastNight({ onDone, onCancel }: { onDone: () => void; onCancel: () => void }) {
+  const [today] = useState(() => isoDate(new Date()))
+  // The unsaved night is kept on this device, so switching tabs or refreshing doesn't lose it.
+  const [draft] = useState(loadDraft)
+  const [date, setDate] = useState(() => draft?.date ?? (() => { const d = new Date(); d.setDate(d.getDate() - 1); return isoDate(d) })())
+  const [plays, setPlays] = useState<PlayInput[]>(draft?.plays ?? [])
+  useEffect(() => {
+    try { if (plays.length) localStorage.setItem(DRAFT_KEY, JSON.stringify({ date, plays })); else localStorage.removeItem(DRAFT_KEY) } catch { /* storage unavailable */ }
+  }, [date, plays])
+  useEffect(() => {
+    if (!plays.length) return
+    const warn = (e: BeforeUnloadEvent) => e.preventDefault()
+    window.addEventListener('beforeunload', warn)
+    return () => window.removeEventListener('beforeunload', warn)
+  }, [plays.length])
+  const [formKey, setFormKey] = useState(0)
+  const listRef = useRef<HTMLParagraphElement>(null)
+  const [error, setError] = useState('')
+  const games = useApi<{ id: number; name: string }[]>('/games')
+  const gameName = (id: number | null) => games?.find(g => g.id === id)?.name ?? '…'
+
+  const move = (i: number, by: number) => setPlays(ps => {
+    const next = [...ps]; [next[i], next[i + by]] = [next[i + by], next[i]]; return next
+  })
+
+  async function save() {
+    setError('')
+    try {
+      await api('/sessions/past', {
+        method: 'POST',
+        body: JSON.stringify({ date, plays: plays.map(({ time, ...p }) => ({ ...p, endTime: endTimeFor(date, time) })) }),
+      })
+      clearDraft()
+      onDone()
+    } catch (err) { setError((err as Error).message) }
+  }
+
+  return (
+    <section className="stack">
+      <div className="card">
+        <div className="live-head">
+          <h2>Add a past game night</h2>
+          <button onClick={() => { if (!plays.length || confirm('Discard this game night? The games below have not been saved.')) { clearDraft(); onCancel() } }}>Discard</button>
+        </div>
+        <p className="muted" ref={listRef}>Add the games in the order they were played. Times are optional.</p>
+        <label>Date (the night it started)
+          <input type="date" value={date} max={today} onChange={e => setDate(e.target.value)} />
+        </label>
+        {plays.length > 0
+          ? <div className="tonight">
+              {plays.map((p, i) => (
+                <div key={i} className="tonight-row">
+                  <span className="tonight-num">{i + 1}</span>
+                  <span className="game-name">{gameName(p.gameId)}</span>
+                  <span className="winner static">
+                    {p.players.some(x => x.placement === 1)
+                      ? <><Trophy /> {p.players.filter(x => x.placement === 1).map(x => x.name).join(', ')}</>
+                      : <span className="muted">no winner</span>}
+                  </span>
+                  <span className="muted">{p.time ? formatTime(endTimeFor(date, p.time)!) : 'time unknown'}</span>
+                  <span className="actions">
+                    <button className="ghost" disabled={i === 0} onClick={() => move(i, -1)} aria-label="Move up">↑</button>
+                    <button className="ghost" disabled={i === plays.length - 1} onClick={() => move(i, 1)} aria-label="Move down">↓</button>
+                    <button className="ghost" onClick={() => setPlays(ps => ps.filter((_, j) => j !== i))} aria-label="Remove">✕</button>
+                  </span>
+                </div>
+              ))}
+            </div>
+          : <p className="muted">No games yet. Add the first one below.</p>}
+        <h3 className="card-title section-divider">Add game {plays.length + 1}</h3>
+        <AddPlay key={formKey} onCollect={p => {
+          setPlays(ps => [...ps, p]); setFormKey(k => k + 1)
+          requestAnimationFrame(() => listRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' }))
+        }} />
+        <div className="save-night">
+          {plays.length > 0
+            ? <p className="unsaved">Not saved yet · {plays.length} game{plays.length === 1 ? '' : 's'}</p>
+            : <p className="muted">Add at least one game, then save the night.</p>}
+          {error && <p className="error">{error}</p>}
+          <button className="primary wide" disabled={!plays.length || !date} onClick={save}>Save game night</button>
+        </div>
+      </div>
+    </section>
   )
 }
 
@@ -319,6 +428,7 @@ function GameNight({ testMode, onChange }: { testMode: boolean; onChange: () => 
   const [loggedIn, setLoggedIn] = useState(!!getToken())
   const [session, setSession] = useState<ActiveSession | null | undefined>(undefined)
   const [error, setError] = useState('')
+  const [past, setPast] = useState(hasPastNightDraft)
 
   const load = () => api<ActiveSession | null>('/sessions/active').then(setSession)
   useEffect(() => { load() }, [])
@@ -331,6 +441,7 @@ function GameNight({ testMode, onChange }: { testMode: boolean; onChange: () => 
 
   if (!loggedIn && !testMode) return <Login onLogin={() => setLoggedIn(true)} />
   if (session === undefined) return null
+  if (past) return <PastNight onCancel={() => setPast(false)} onDone={() => { setPast(false); onChange() }} />
 
   if (!session) return (
     <section className="hero-card">
@@ -338,6 +449,7 @@ function GameNight({ testMode, onChange }: { testMode: boolean; onChange: () => 
       <h2>Ready for game night?</h2>
       <p className="muted">Start a session to log tonight's games. It wraps up on its own after 12 hours.</p>
       <button className="primary big" onClick={() => run(() => api('/sessions', { method: 'POST' }))}>Start game night</button>
+      <button className="ghost" onClick={() => setPast(true)}>{hasPastNightDraft() ? 'Continue unsaved past game night' : '+ Add a past game night'}</button>
       {error && <p className="error">{error}</p>}
     </section>
   )
