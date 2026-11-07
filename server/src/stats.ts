@@ -1,13 +1,13 @@
 import { sql } from './db.js';
 
-type Entry = {
+export type Entry = {
   play_id: number; session_id: number; date: string; game_id: number; game: string; expansions: string | null
   player: string; score: number | null; placement: number | null; legacy: number; players_in_play: number
 };
 
 // A play is "complete" when more than one player was recorded. Most legacy plays only
 // list the winner, so rates and streaks only count complete plays to stay fair.
-const isComplete = (e: Entry) => e.players_in_play > 1;
+export const isComplete = (e: Entry) => e.players_in_play > 1;
 
 async function entries(includeLegacy: boolean): Promise<Entry[]> {
   return sql<Entry[]>`
@@ -23,7 +23,7 @@ async function entries(includeLegacy: boolean): Promise<Entry[]> {
 
 const rate = (wins: number, played: number) => (played ? wins / played : null);
 
-function summarize(mine: Entry[]) {
+export function summarize(mine: Entry[]) {
   const complete = mine.filter(isComplete);
   const wins = mine.filter(e => e.placement === 1).length;
   const completeWins = complete.filter(e => e.placement === 1).length;
@@ -119,7 +119,7 @@ export async function playerProfile(name: string, includeLegacy = true) {
 }
 
 // Standings at one game: most wins first, then best win rate, then name.
-function standingsFor(rows: Entry[]) {
+export function standingsFor(rows: Entry[]) {
   const byPlayer = new Map<string, Entry[]>();
   for (const e of rows) byPlayer.set(e.player, [...(byPlayer.get(e.player) ?? []), e]);
   return [...byPlayer].map(([name, es]) => {

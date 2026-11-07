@@ -7,3 +7,4 @@ dist
 
 # Real game-night data stays local
 data/
+.test-mode/
