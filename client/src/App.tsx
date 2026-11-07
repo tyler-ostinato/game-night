@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from 'react'
-import { api, getToken, getShowLegacy, setShowLegacy } from './api'
+import { api, getToken, setToken, getShowLegacy, setShowLegacy } from './api'
 import { Login } from './Login'
 import { ActivityChart, RangeFilter, presetRange, type Range } from './Activity'
 import { PlayersPage, PlayerProfile } from './Players'
@@ -59,6 +59,13 @@ export default function App() {
             <span className="switch" />
             Legacy games
           </label>
+          {!mode?.test && getToken() && (
+            <button className="ghost logout" onClick={async () => {
+              await api('/logout', { method: 'POST' }).catch(() => {})
+              setToken(null)
+              location.reload()
+            }}>Log out</button>
+          )}
         </div>
       </header>
       <main className="page" key={`${version}-${showLegacy}`}>

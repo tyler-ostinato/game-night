@@ -28,11 +28,13 @@ Before every commit:
 ## Hard rules
 
 - **Never write to the production database** (`DATABASE_URL`). Use testing mode (`TEST_DATABASE_URL`) for anything that creates, edits or deletes data. Only touch production data when the user explicitly asks for that specific change, and say exactly what will change first.
-- **Schema changes are additive only.** `server/src/schema.sql` runs on every server start against whatever database it's connected to, including production. Add tables, or nullable columns with `ADD COLUMN IF NOT EXISTS`. Never rename or drop a column/table in the same deploy that stops using it.
+- **Schema changes are additive only.** `server/src/schema.ts` runs on every server start against whatever database it's connected to, including production. Add tables, or nullable columns with `ADD COLUMN IF NOT EXISTS`. Never rename or drop a column/table in the same deploy that stops using it.
 - **History can't be lost.** Played games/expansions can't be deleted (enforced server-side); keep it that way.
 - Don't commit `.env*` or `.test-mode/`.
 - The database is the only copy of the data (no CSV or local backup); Neon restore points are the backup.
 - New write endpoints need `requireAuth` (see `server/src/auth.ts`).
+- Always use `sql` tagged templates for queries (values are sent separately); never build SQL from strings or use `sql.unsafe` with user input.
+- Never send raw error details to the browser on the live site; throw `UserError`-style messages for things users should see.
 
 ## Commit messages
 

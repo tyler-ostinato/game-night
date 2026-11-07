@@ -1,12 +1,13 @@
 import express from 'express';
 import cors from 'cors';
-import { sql, idFor } from './db.js';
-import { login, requireAuth } from './auth.js';
+import { sql, idFor, ensureSchema, TEST_MODE } from './db.js';
+import { login, logout, requireAuth } from './auth.js';
 import { bggEnabled, imageRoutes, removeImage } from './images.js';
 import { gameChampions, gameStats, playerList, playerProfile } from './stats.js';
 
 const app = express();
 app.use(cors());
+app.use(async (_req, _res, next) => { try { await ensureSchema(); next(); } catch (err) { next(err); } });
 app.use('/api', imageRoutes); // before express.json so uploads get their own size limit
 app.use(express.json());
 
@@ -28,11 +29,12 @@ async function activeSession(): Promise<LiveSession | null> {
 const localDate = (d: Date) =>
   `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
 
-export const TEST_MODE = process.env.GAMENIGHT_TEST === '1';
+export { TEST_MODE };
 
 app.get('/api/mode', (_req, res) => res.json({ test: TEST_MODE, bgg: bggEnabled() }));
 
 app.post('/api/login', login);
+app.post('/api/logout', logout);
 
 app.get('/api/sessions/active', async (_req, res) => {
   const s = await activeSession();
@@ -292,7 +294,8 @@ app.post('/api/sessions/past', requireAuth, async (req, res) => {
 // Always answer with JSON so the site can show a readable message.
 app.use((err: Error, _req: express.Request, res: express.Response, _next: express.NextFunction) => {
   console.error(err);
-  res.status(500).json({ error: `Server error: ${err.message}` });
+  // Details only on your own computer; the live site gets a generic message so it doesn't reveal internals.
+  res.status(500).json({ error: process.env.VERCEL ? 'Something went wrong on the server. Please try again.' : `Server error: ${err.message}` });
 });
 
 export default app;

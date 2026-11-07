@@ -2,7 +2,7 @@
 
 What's stored where. For the stats rules, see the [README](../README.md#how-the-stats-work).
 
-## Database tables (`server/src/schema.sql`)
+## Database tables (`server/src/schema.ts`)
 
 | Table | What it holds |
 |---|---|
@@ -13,9 +13,10 @@ What's stored where. For the stats rules, see the [README](../README.md#how-the-
 | `expansions` | Expansions, each belonging to one game |
 | `play_expansions` | Which expansions were used in a play |
 | `players` | Player names |
-| `auth_tokens` | Logins handed out after the password check |
+| `auth_tokens` | Logins handed out after the password check (stored hashed, tagged with the password they were issued under) |
+| `login_attempts` | Recent wrong passwords, for brute-force protection |
 
-The tables are created, and new columns added, automatically when the server starts (`server/src/schema.sql`, `server/src/db.ts`).
+The tables are created, and new columns added, automatically the first time each server instance handles a request (`server/src/schema.ts`, `ensureSchema` in `server/src/db.ts`), and by `npm run db:setup`.
 
 ## Where the legacy data came from
 

@@ -50,7 +50,7 @@ Open http://localhost:5173. Both halves reload automatically when you edit code,
 ```
 
 - **Vercel** hosts everything. `vercel.json` tells it to install all three packages, build the client into static files, and send every `/api/*` request to one function that runs the Express app. Nothing runs between requests, so the server keeps nothing in memory or on disk.
-- **Neon Postgres** holds all the data (tables in `server/src/schema.sql`). Vercel created it from the project's **Storage** tab and adds `DATABASE_URL` to the settings automatically. Live site, preview deploys and `npm run dev` all use **this same database**.
+- **Neon Postgres** holds all the data (tables in `server/src/schema.ts`). Vercel created it from the project's **Storage** tab and adds `DATABASE_URL` to the settings automatically. Live site, preview deploys and `npm run dev` all use **this same database**.
 - **Vercel Blob** holds the covers. It's a **public** store: anyone with an image's URL can view it (the URLs end in a long random suffix), but only the server can upload or delete. Each game's `image` column holds the full Blob URL, and the browser loads it straight from Blob.
 - **Settings** live in Vercel → Project → **Settings → Environment Variables**, separately for Production, Preview and Development. `npx vercel env pull` copies the Development ones into `.env.local`, which the server reads at startup. Change settings there, not in code.
 
@@ -129,8 +129,18 @@ npm run db:setup -- --test     # create the (empty) tables
 - **Viewing** is public.
 - **Making changes** needs the password: logging in, starting, ending or cancelling sessions, adding games or players, and editing games, expansions or covers.
 - **Where it's checked:** on the server only (`server/src/auth.ts`). Set it with `GAMENIGHT_PASSWORD`; the server won't start without it (except in test mode).
-- **Logins** last 30 days per device.
-- **Wrong guesses:** after 10, that IP is blocked for 15 minutes. On Vercel each server instance counts separately, so this only slows guessing down.
+- **Logins** last 30 days per device. **Log out** (top right) ends the login on that device.
+- **Changing the password logs everyone out.** Each login remembers which password it came from, so if the password may have leaked, change `GAMENIGHT_PASSWORD` in Vercel and redeploy.
+- **Wrong guesses:** after 10 from one address, that address is blocked for 15 minutes; after 100 from everyone combined, logging in pauses for 15 minutes. The counts live in the database (`login_attempts`), so all Vercel instances share them. The address comes from Vercel's `x-real-ip` header, which browsers can't fake.
+- **Logins are stored hashed** (SHA-256), so a copy of the database doesn't contain usable logins. Expired ones are deleted whenever someone logs in.
+- **Testing mode can't run on Vercel.** It turns the password off, so the server refuses to start if `GAMENIGHT_TEST` is set there.
+
+### Other protections
+
+- **Database queries** always pass values separately from the SQL (the `postgres` library's tagged templates), so nothing typed into the site can change a query. Never build SQL by joining strings.
+- **Error messages** on the live site are generic; details go to the Vercel logs. Locally you see the full message.
+- **Cover links** can only point at public websites: links (and every redirect) to this computer, private networks or cloud metadata addresses are refused.
+- **Covers in testing mode** only ever delete files in `test-covers/`, never the real covers the test database's games still point at.
 
 
 ## Code map
@@ -142,7 +152,7 @@ npm run db:setup -- --test     # create the (empty) tables
 | `server/src/stats.ts` | Player profiles, leaderboard, per-game stats, champions |
 | `server/src/images.ts` | Cover upload and download to Blob; BoardGameGeek search |
 | `server/src/auth.ts` | Password check, login tokens, rate limiting |
-| `server/src/db.ts`, `schema.sql` | Database connection and tables |
+| `server/src/db.ts`, `schema.ts` | Database connection and tables |
 | `server/scripts/setup-db.ts` | Creates the tables (`npm run db:setup`) |
 | `client/src/App.tsx` | Layout, Game night, Leaderboard, History, Records |
 | `client/src/Players.tsx` | Players tab and player profile |

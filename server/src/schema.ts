@@ -1,3 +1,6 @@
+// Database tables. Applied automatically on server start (see ensureSchema in db.ts) and by
+// `npm run db:setup`. Changes must be additive only (see CLAUDE.md): this runs against production.
+export const SCHEMA = `
 CREATE TABLE IF NOT EXISTS players (
   id   SERIAL PRIMARY KEY,
   name TEXT NOT NULL UNIQUE
@@ -58,3 +61,15 @@ CREATE TABLE IF NOT EXISTS play_expansions (
   expansion_id INTEGER NOT NULL REFERENCES expansions(id),
   PRIMARY KEY (play_id, expansion_id)
 );
+
+-- Login tokens: stored hashed; password_tag ties each to the password it was issued under.
+ALTER TABLE auth_tokens ADD COLUMN IF NOT EXISTS password_tag TEXT;
+
+-- Wrong-password attempts, for brute-force protection shared by every server instance.
+CREATE TABLE IF NOT EXISTS login_attempts (
+  ip TEXT NOT NULL,
+  at TEXT NOT NULL
+);
+CREATE INDEX IF NOT EXISTS login_attempts_at ON login_attempts (at);
+
+`;

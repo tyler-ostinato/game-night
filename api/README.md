@@ -9,7 +9,8 @@ Read endpoints accept `?legacy=0` to leave out legacy games. Endpoints marked �
 | Method | Path | Purpose |
 |---|---|---|
 | GET | `/api/mode` | Test mode and BGG search on/off |
-| POST | `/api/login` | Exchange the password for a token |
+| POST | `/api/login` | Exchange the password for a token (10 wrong tries per address per 15 minutes) |
+| POST | `/api/logout` | End the current login |
 | GET | `/api/sessions/active` | The running session and its games |
 | POST 🔒 | `/api/sessions` | Start a session |
 | POST 🔒 | `/api/sessions/:id/end` | End the running session |

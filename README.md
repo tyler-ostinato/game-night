@@ -100,7 +100,8 @@ The current covers came from BoardGameGeek. **Clue** uses BGG's *Clue (1949)* en
 
 - **Viewing** is public.
 - **Making changes** needs the password: logging in, starting, ending or cancelling sessions, adding games or players, and editing games, expansions or covers.
-- **Logins** last 30 days per device. Details are in [docs/development.md](docs/development.md#password).
+- **Logins** last 30 days per device. **Log out** is at the top right.
+- **If the password may have leaked,** change it in Vercel: that logs everyone out. Security details are in [docs/development.md](docs/development.md#password).
 
 ## Working on the code
 

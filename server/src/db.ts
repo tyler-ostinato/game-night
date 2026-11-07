@@ -1,12 +1,22 @@
 import postgres from 'postgres';
+import { SCHEMA } from './schema.js';
 
 // Test mode gets its own database so it can never touch real results.
-const TEST_MODE = process.env.GAMENIGHT_TEST === '1';
+export const TEST_MODE = process.env.GAMENIGHT_TEST === '1';
+// Test mode turns off the password, so it must never run on Vercel (e.g. if GAMENIGHT_TEST is set there by mistake).
+if (TEST_MODE && process.env.VERCEL) throw new Error('GAMENIGHT_TEST must not be set on Vercel: it turns off the password.');
 const url = TEST_MODE ? process.env.TEST_DATABASE_URL : process.env.DATABASE_URL;
 if (!url) throw new Error(`Set ${TEST_MODE ? 'TEST_DATABASE_URL' : 'DATABASE_URL'} (see README).`);
 
 // prepare: false because Neon's pooled connection doesn't keep prepared statements.
 export const sql = postgres(url, { prepare: false, max: process.env.VERCEL ? 1 : 10, onnotice: () => {} });
+
+// Create any missing tables/columns once per server instance, before the first request is handled.
+let schemaReady: Promise<unknown> | null = null;
+export function ensureSchema() {
+  schemaReady ??= sql.unsafe(SCHEMA).catch(err => { schemaReady = null; throw err; });
+  return schemaReady;
+}
 
 type Sql = typeof sql | postgres.TransactionSql;
 
