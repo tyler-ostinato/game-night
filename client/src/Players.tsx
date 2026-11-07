@@ -89,9 +89,19 @@ function Stat({ label, value, sub }: { label: string; value: React.ReactNode; su
 export function PlayerProfile({ name, testMode, onPlayer, onBack }: { name: string; testMode: boolean; onPlayer: (name: string) => void; onBack: () => void }) {
   const { data: p, error } = useFetch<Profile>(`/players/${encodeURIComponent(name)}`)
   const [editing, setEditing] = useState(false)
+  // New players have no stats yet, but can still set up their character.
   if (error === 'Not found') return (
     <section className="stack">
       <button className="back" onClick={onBack}>← All players</button>
+      <div className="profile-hero">
+        <Avatar name={name} size={104} />
+        <div>
+          <h2>{name}</h2>
+          <p className="muted">No games yet</p>
+        </div>
+        {!editing && <button className="hero-edit" style={{ marginLeft: 'auto' }} onClick={() => setEditing(true)}>Edit character</button>}
+      </div>
+      {editing && <CharacterEditor name={name} testMode={testMode} onDone={() => setEditing(false)} />}
       <Empty what={`${name} hasn't played any games yet.`} />
     </section>
   )
